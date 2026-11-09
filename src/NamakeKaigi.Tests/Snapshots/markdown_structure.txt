@@ -1,0 +1,216 @@
+=== plain
+TextBox text="ただの文章です。記号は入っていません。" readOnly=True fg=#FF3B2A1E
+=== heading
+MarkdownTextBox fg=#FF3B2A1E menu=2
+  Paragraph fs=16.5 fw=Bold margin=0,6,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF2F6B45 bg=null borderBrush=null font=Yu Gothic UI
+    Run "見出し1" font=Yu Gothic UI bg=null
+  Paragraph fs=15.5 fw=Bold margin=0,6,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF2F6B45 bg=null borderBrush=null font=Yu Gothic UI
+    Run "見出し2" font=Yu Gothic UI bg=null
+  Paragraph fs=14.5 fw=Bold margin=0,6,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF2F6B45 bg=null borderBrush=null font=Yu Gothic UI
+    Run "見出し3" font=Yu Gothic UI bg=null
+  Paragraph fs=13.5 fw=Bold margin=0,6,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF2F6B45 bg=null borderBrush=null font=Yu Gothic UI
+    Run "見出し4" font=Yu Gothic UI bg=null
+  Paragraph fs=12 fw=Normal margin=0,1,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+    Run "本文" font=Yu Gothic UI bg=null
+=== inline
+MarkdownTextBox fg=#FF3B2A1E menu=2
+  Paragraph fs=12 fw=Normal margin=0,1,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+    Bold
+      Run "太字" font=Yu Gothic UI bg=null
+    Run "と" font=Yu Gothic UI bg=null
+    Run " コード " font=Consolas, Yu Gothic UI, Meiryo bg=#FFF4F1DA
+    Run "と" font=Yu Gothic UI bg=null
+    Underline
+      Run "下線" font=Yu Gothic UI bg=null
+    Run "が、1行に " font=Yu Gothic UI bg=null
+    Bold
+      Run "a" font=Yu Gothic UI bg=null
+    Run " " font=Yu Gothic UI bg=null
+    Run " b " font=Consolas, Yu Gothic UI, Meiryo bg=#FFF4F1DA
+    Run " " font=Yu Gothic UI bg=null
+    Underline
+      Run "c" font=Yu Gothic UI bg=null
+    Run " と並ぶ。" font=Yu Gothic UI bg=null
+=== list
+MarkdownTextBox fg=#FF3B2A1E menu=2
+  List marker=Disc start=1 margin=4,1,0,2 pad=16,0,0,0 offset=6
+    ListItem fg=#FF2F6B45
+      Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+        Run "りんご" font=Yu Gothic UI bg=null
+    ListItem fg=#FF2F6B45
+      Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+        Run "みかん" font=Yu Gothic UI bg=null
+  List marker=Disc start=1 margin=22,1,0,2 pad=16,0,0,0 offset=6
+    ListItem fg=#FF2F6B45
+      Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+        Run "ふじ" font=Yu Gothic UI bg=null
+  List marker=Disc start=1 margin=40,1,0,2 pad=16,0,0,0 offset=6
+    ListItem fg=#FF2F6B45
+      Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+        Run "深さ3" font=Yu Gothic UI bg=null
+  List marker=Decimal start=1 margin=4,1,0,2 pad=24,0,0,0 offset=6
+    ListItem fg=#FF2F6B45
+      Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+        Run "最初" font=Yu Gothic UI bg=null
+    ListItem fg=#FF2F6B45
+      Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+        Run "次" font=Yu Gothic UI bg=null
+  List marker=Disc start=1 margin=4,7,0,2 pad=16,0,0,0 offset=6
+    ListItem fg=#FF2F6B45
+      Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+        Run "空行のあとの箇条書き" font=Yu Gothic UI bg=null
+=== quote
+MarkdownTextBox fg=#FF3B2A1E menu=2
+  Paragraph fs=12 fw=Normal margin=4,2,0,2 pad=8,1,0,1 border=3,0,0,0 fg=#FF6B7762 bg=null borderBrush=#FFE2E8F0 font=Yu Gothic UI
+    Run "引用1" font=Yu Gothic UI bg=null
+    LineBreak
+    Run "引用2" font=Yu Gothic UI bg=null
+    LineBreak
+    Run "深い引用" font=Yu Gothic UI bg=null
+  Paragraph fs=12 fw=Normal margin=0,7,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+    Run "本文" font=Yu Gothic UI bg=null
+  List marker=Disc start=1 margin=4,7,0,2 pad=16,0,0,0 offset=6
+    ListItem fg=#FF2F6B45
+      Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+        Run "箇条書き" font=Yu Gothic UI bg=null
+  Paragraph fs=12 fw=Normal margin=22,2,0,2 pad=8,1,0,1 border=3,0,0,0 fg=#FF6B7762 bg=null borderBrush=#FFE2E8F0 font=Yu Gothic UI
+    Run "箇条書きの下の引用" font=Yu Gothic UI bg=null
+=== code
+MarkdownTextBox fg=#FF3B2A1E menu=2
+  Paragraph fs=12 fw=Normal margin=0,1,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+    Run "前の文" font=Yu Gothic UI bg=null
+  Paragraph fs=12.5 fw=Normal margin=0,4,0,4 pad=10,6,10,6 border=1,1,1,1 fg=#FF3B2A1E bg=#FFF4F1DA borderBrush=#FFD5DCC8 font=Consolas, Yu Gothic UI, Meiryo
+    Run "var x = 1;" font=Consolas, Yu Gothic UI, Meiryo bg=null
+    LineBreak
+    Run "  indented();" font=Consolas, Yu Gothic UI, Meiryo bg=null
+  Paragraph fs=12 fw=Normal margin=0,1,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+    Run "後の文" font=Yu Gothic UI bg=null
+  Paragraph fs=12.5 fw=Normal margin=0,4,0,4 pad=10,6,10,6 border=1,1,1,1 fg=#FF3B2A1E bg=#FFF4F1DA borderBrush=#FFD5DCC8 font=Consolas, Yu Gothic UI, Meiryo
+    Run "閉じていないコード" font=Consolas, Yu Gothic UI, Meiryo bg=null
+=== table
+MarkdownTextBox fg=#FF3B2A1E menu=2
+  Table columns=2 margin=0,4,0,4 border=1,1,1,1 borderBrush=#FFE2E8F0
+    Row bg=#FFF4F1DA fw=Bold
+      Cell border=0,0,1,1 pad=6,4,6,4
+        Paragraph fs=12 fw=Bold margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+          Run "項目" font=Yu Gothic UI bg=null
+      Cell border=0,0,0,1 pad=6,4,6,4
+        Paragraph fs=12 fw=Bold margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+          Run "状態" font=Yu Gothic UI bg=null
+    Row bg=null fw=Normal
+      Cell border=0,0,1,1 pad=6,4,6,4
+        Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+          Run "発言の数" font=Yu Gothic UI bg=null
+      Cell border=0,0,0,1 pad=6,4,6,4
+        Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+          Run "多い" font=Yu Gothic UI bg=null
+    Row bg=null fw=Normal
+      Cell border=0,0,1,0 pad=6,4,6,4
+        Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+          Run "a|b" font=Yu Gothic UI bg=null
+      Cell border=0,0,0,0 pad=6,4,6,4
+        Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+          Bold
+            Run "太字" font=Yu Gothic UI bg=null
+  Paragraph fs=12 fw=Normal margin=0,7,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+    Run "表のあとの文" font=Yu Gothic UI bg=null
+=== table_wide
+MarkdownTextBox fg=#FF3B2A1E menu=2
+  Table columns=2 margin=0,4,0,4 border=1,1,1,1 borderBrush=#FFE2E8F0
+    Row bg=#FFF4F1DA fw=Bold
+      Cell border=0,0,1,1 pad=6,4,6,4
+        Paragraph fs=12 fw=Bold margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+          Run "#" font=Yu Gothic UI bg=null
+      Cell border=0,0,0,1 pad=6,4,6,4
+        Paragraph fs=12 fw=Bold margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+          Run "説明がとても長い列の見出し" font=Yu Gothic UI bg=null
+    Row bg=null fw=Normal
+      Cell border=0,0,1,0 pad=6,4,6,4
+        Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+          Run "1" font=Yu Gothic UI bg=null
+      Cell border=0,0,0,0 pad=6,4,6,4
+        Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+          Run "これは長い長い説明の文章で、列幅の比率が掛かる" font=Yu Gothic UI bg=null
+=== rule
+MarkdownTextBox fg=#FF3B2A1E menu=2
+  Paragraph fs=12 fw=Normal margin=0,1,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+    Run "上" font=Yu Gothic UI bg=null
+  BlockUIContainer Border height=1 margin=0,6,0,6
+  Paragraph fs=12 fw=Normal margin=0,1,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+    Run "中" font=Yu Gothic UI bg=null
+  List marker=Disc start=1 margin=4,1,0,2 pad=16,0,0,0 offset=6
+    ListItem fg=#FF2F6B45
+      Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+        Run "* *" font=Yu Gothic UI bg=null
+  Paragraph fs=12 fw=Normal margin=0,1,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+    Run "下" font=Yu Gothic UI bg=null
+  BlockUIContainer Border height=1 margin=0,6,0,6
+=== links
+MarkdownTextBox fg=#FF3B2A1E menu=2
+  Paragraph fs=12 fw=Normal margin=0,1,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+    Hyperlink tip=https://example.com/path fg=#FF2F6B45
+      Run "https://example.com/path" font=Yu Gothic UI bg=null
+    Run " を開く。" font=Yu Gothic UI bg=null
+    Hyperlink tip=https://example.com/a fg=#FF2F6B45
+      Run "名前" font=Yu Gothic UI bg=null
+    Run " と " font=Yu Gothic UI bg=null
+    Run "無い" font=Yu Gothic UI bg=null
+    Run " と " font=Yu Gothic UI bg=null
+    Hyperlink tip=https://example.com/b fg=#FF2F6B45
+      Run " https://example.com/b " font=Consolas, Yu Gothic UI, Meiryo bg=#FFF4F1DA
+=== image
+MarkdownTextBox fg=#FF3B2A1E menu=2
+  Paragraph fs=12 fw=Normal margin=0,1,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+    LineBreak
+    InlineUIContainer Image width=4 maxH=300 tip={DIR}/sample.png
+    LineBreak
+    Run " の後ろに文字" font=Yu Gothic UI bg=null
+  Paragraph fs=12 fw=Normal margin=0,1,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+    Hyperlink tip={DIR}/sample.png fg=#FF2F6B45
+      Run " {DIR}/sample.png " font=Consolas, Yu Gothic UI, Meiryo bg=#FFF4F1DA
+    LineBreak
+    InlineUIContainer Image width=4 maxH=300 tip={DIR}/sample.png
+=== mixed
+MarkdownTextBox fg=#FF3B2A1E menu=2
+  Paragraph fs=16.5 fw=Bold margin=0,6,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF2F6B45 bg=null borderBrush=null font=Yu Gothic UI
+    Run "結論" font=Yu Gothic UI bg=null
+  List marker=Disc start=1 margin=4,7,0,2 pad=16,0,0,0 offset=6
+    ListItem fg=#FF2F6B45
+      Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+        Bold
+          Run "原因" font=Yu Gothic UI bg=null
+        Run ": " font=Yu Gothic UI bg=null
+        Run " MarkdownFormatter " font=Consolas, Yu Gothic UI, Meiryo bg=#FFF4F1DA
+        Run " が全文を作り直す" font=Yu Gothic UI bg=null
+    ListItem fg=#FF2F6B45
+      Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+        Run "対策:" font=Yu Gothic UI bg=null
+  List marker=Decimal start=1 margin=22,1,0,2 pad=24,0,0,0 offset=6
+    ListItem fg=#FF2F6B45
+      Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+        Run "間引く" font=Yu Gothic UI bg=null
+    ListItem fg=#FF2F6B45
+      Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+        Run "仮想化する" font=Yu Gothic UI bg=null
+  Table columns=2 margin=0,10,0,4 border=1,1,1,1 borderBrush=#FFE2E8F0
+    Row bg=#FFF4F1DA fw=Bold
+      Cell border=0,0,1,1 pad=6,4,6,4
+        Paragraph fs=12 fw=Bold margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+          Run "項目" font=Yu Gothic UI bg=null
+      Cell border=0,0,0,1 pad=6,4,6,4
+        Paragraph fs=12 fw=Bold margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+          Run "値" font=Yu Gothic UI bg=null
+    Row bg=null fw=Normal
+      Cell border=0,0,1,0 pad=6,4,6,4
+        Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+          Run "速度" font=Yu Gothic UI bg=null
+      Cell border=0,0,0,0 pad=6,4,6,4
+        Paragraph fs=12 fw=Normal margin=0,0,0,0 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+          Run "速い" font=Yu Gothic UI bg=null
+  Paragraph fs=12 fw=Normal margin=4,8,0,2 pad=8,1,0,1 border=3,0,0,0 fg=#FF6B7762 bg=null borderBrush=#FFE2E8F0 font=Yu Gothic UI
+    Run "注意" font=Yu Gothic UI bg=null
+  Paragraph fs=12.5 fw=Normal margin=0,10,0,4 pad=10,6,10,6 border=1,1,1,1 fg=#FF3B2A1E bg=#FFF4F1DA borderBrush=#FFD5DCC8 font=Consolas, Yu Gothic UI, Meiryo
+    Run "code" font=Consolas, Yu Gothic UI, Meiryo bg=null
+  BlockUIContainer Border height=1 margin=0,6,0,6
+  Paragraph fs=12 fw=Normal margin=0,1,0,2 pad=0,0,0,0 border=0,0,0,0 fg=#FF3B2A1E bg=null borderBrush=null font=Yu Gothic UI
+    Run "終わり" font=Yu Gothic UI bg=null

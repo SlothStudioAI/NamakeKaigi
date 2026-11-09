@@ -1,0 +1,87 @@
+<Window x:Class="NamakeKaigi.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="設定" Width="440" SizeToContent="Height" MinWidth="380" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource SidebarBackgroundBrush}"
+        Foreground="{DynamicResource SidebarTextBrush}"
+        FontFamily="Yu Gothic UI, Segoe UI, Meiryo" FontSize="13"
+        Icon="pack://application:,,,/NamakeKaigi;component/Assets/namake_icon.png">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/ControlStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <!-- DataContext は、メイン画面と同じ MainViewModel(変更はすぐ効き、settings.json にも保存される) -->
+    <StackPanel Margin="20,16">
+        <TextBlock Text="設定" FontSize="17" FontWeight="Bold"/>
+        <TextBlock Text="変更はすぐ効き、ユーザーの設定(settings.local.json)に保存されます。"
+                   FontSize="11.5" Foreground="{DynamicResource SidebarMutedTextBrush}" Margin="0,3,0,14"/>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="110"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="配色テーマ" VerticalAlignment="Center" Margin="0,6"/>
+            <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,6" FontSize="12"
+                      Style="{StaticResource SidebarComboBox}"
+                      ItemsSource="{Binding ThemeOptions}" DisplayMemberPath="Label"
+                      SelectedValuePath="Id" SelectedValue="{Binding SelectedThemeId}"
+                      ToolTip="配色テーマ(緑基調3種・ダークモード2種・オフィス2種)を切り替えます"/>
+
+            <TextBlock Grid.Row="1" Text="返答の制限時間" VerticalAlignment="Center" Margin="0,6"/>
+            <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,6" FontSize="12"
+                      Style="{StaticResource SidebarComboBox}"
+                      ItemsSource="{Binding TimeoutOptions}" DisplayMemberPath="Label"
+                      SelectedValuePath="Seconds" SelectedValue="{Binding SelectedTimeoutSec}"
+                      ToolTip="AIの1回の返答を待つ制限時間です。会話だけなら短く、開発作業(ビルド・試験)なら長めに。次の発言から効きます"/>
+
+            <TextBlock Grid.Row="2" Text="イラスト" VerticalAlignment="Center" Margin="0,6"/>
+            <CheckBox Grid.Row="2" Grid.Column="1" Margin="0,6" VerticalAlignment="Center"
+                      IsChecked="{Binding IsBusinessMode}"
+                      Foreground="{DynamicResource SidebarTextBrush}"
+                      ToolTip="クローディ・ジェミリーなどのイラストを、頭文字の丸(U / C / G)に変えます。画面共有のときなどに">
+                <TextBlock Text="💼 イラストの代わりに頭文字を出す" FontSize="12"/>
+            </CheckBox>
+
+            <!-- 読み上げの機能を使わない設定(voice.enabled が false。既定)なら、この行を出さない -->
+            <TextBlock Grid.Row="3" Text="読み上げ" VerticalAlignment="Center" Margin="0,6"
+                       Visibility="{Binding ReadAloudEnabled, Converter={StaticResource BoolToVisibility}}"/>
+            <CheckBox Grid.Row="3" Grid.Column="1" Margin="0,6" VerticalAlignment="Center"
+                      Visibility="{Binding ReadAloudEnabled, Converter={StaticResource BoolToVisibility}}"
+                      IsChecked="{Binding ReadAloudOn}" IsEnabled="{Binding ReadAloudAvailable}"
+                      Foreground="{DynamicResource SidebarTextBrush}"
+                      ToolTipService.ShowOnDisabled="True" ToolTip="{Binding ReadAloudTooltip}">
+                <TextBlock Text="🔊 返答が完成したら、声で読み上げる" FontSize="12"/>
+            </CheckBox>
+
+            <TextBlock Grid.Row="4" Text="表示名" VerticalAlignment="Center" Margin="0,6"/>
+            <Button Grid.Row="4" Grid.Column="1" Content="✏️ 名前変更…" Click="OnOpenAppearance"
+                    Style="{StaticResource SidebarLinkButton}" HorizontalAlignment="Left" VerticalAlignment="Center"
+                    Margin="0,6" FontSize="12"
+                    ToolTip="あなた・Claude・Gemini の表示名を設定します"/>
+
+            <TextBlock Grid.Row="5" Text="場所" VerticalAlignment="Center" Margin="0,6"/>
+            <Button Grid.Row="5" Grid.Column="1" Content="📁 場所…" Click="OnOpenLocations"
+                    Style="{StaticResource SidebarLinkButton}" HorizontalAlignment="Left" VerticalAlignment="Center"
+                    Margin="0,6" FontSize="12"
+                    ToolTip="作業フォルダ・会議ログの保存先・予約ファイル・各AIのCLIの場所を設定します(次の起動から効きます)"/>
+        </Grid>
+
+        <Button Content="閉じる" Click="OnClose" HorizontalAlignment="Right" Margin="0,16,0,0" Padding="18,5" IsDefault="True" IsCancel="True"/>
+    </StackPanel>
+</Window>

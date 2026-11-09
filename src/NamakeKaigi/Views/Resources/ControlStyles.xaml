@@ -1,0 +1,492 @@
+﻿<!-- メイン画面のコントロールの見た目(仕切り・タイトルバーのボタン・サイドバーの部品・ボタン・宛先ピル・会議室のタブ)と、共通の変換。
+     色は、テーマ(ForestTheme)のリソースを DynamicResource で読む。 -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+                    xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+                    xmlns:vm="clr-namespace:NamakeKaigi.ViewModels"
+                    xmlns:views="clr-namespace:NamakeKaigi.Views">
+    <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
+    <!-- ドラッグで幅を変えられる仕切り。ふだんは目立たず、マウスを乗せると色が付く -->
+    <Style x:Key="PaneSplitter" TargetType="GridSplitter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Cursor" Value="SizeWE"/>
+        <Setter Property="ResizeDirection" Value="Columns"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource PanelBorderBrush}"/>
+            </Trigger>
+            <Trigger Property="IsDragging" Value="True">
+                <Setter Property="Background" Value="{DynamicResource AccentGreenBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- 独自タイトルバーの右上ボタン(最小化・最大化) -->
+    <Style x:Key="TitleBarButtonStyle" TargetType="Button">
+        <Setter Property="Width" Value="42"/>
+        <Setter Property="Height" Value="38"/>
+        <Setter Property="Foreground" Value="{DynamicResource TitleBarButtonForegroundBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="shell:WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource TitleBarButtonHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource TitleBarButtonPressedBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 独自タイトルバーの閉じるボタン(ホバー時は赤) -->
+    <Style x:Key="TitleBarCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource TitleBarButtonStyle}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource TitleBarCloseHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource TitleBarClosePressedBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- サイドバー用のドロップダウン(モデル・労力選択。緑のサイドバーに馴染む濃い緑) -->
+    <Style x:Key="SidebarComboBoxItemStyle" TargetType="ComboBoxItem">
+        <Setter Property="Foreground" Value="{DynamicResource SidebarTextBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource SidebarSelectedBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource SidebarHoverBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource SidebarAccentBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SidebarComboBox" TargetType="ComboBox">
+        <Setter Property="Foreground" Value="{DynamicResource SidebarTextBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SidebarInputBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SidebarBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="ItemContainerStyle" Value="{StaticResource SidebarComboBoxItemStyle}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid>
+                        <ToggleButton x:Name="ToggleButton"
+                                      ClickMode="Press"
+                                      Focusable="False"
+                                      IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border x:Name="bd"
+                                            Background="{DynamicResource SidebarInputBackgroundBrush}"
+                                            BorderBrush="{DynamicResource SidebarBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="6,3">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0"/>
+                                            <TextBlock Grid.Column="1" Text="▾" FontSize="10" Margin="4,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource SidebarAccentBrush}"/>
+                                        </Grid>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource SidebarSelectedBrush}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+                        <ContentPresenter x:Name="ContentSite"
+                                          IsHitTestVisible="False"
+                                          Content="{TemplateBinding SelectionBoxItem}"
+                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                          Margin="7,3,18,3"
+                                          VerticalAlignment="Center"
+                                          HorizontalAlignment="Left"/>
+                        <Popup x:Name="Popup"
+                               Placement="Bottom"
+                               IsOpen="{TemplateBinding IsDropDownOpen}"
+                               AllowsTransparency="True"
+                               Focusable="False"
+                               PopupAnimation="Slide">
+                            <Border x:Name="DropDownBorder"
+                                    MinWidth="{TemplateBinding ActualWidth}"
+                                    MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                    Background="{DynamicResource SidebarInputBackgroundBrush}"
+                                    BorderBrush="{DynamicResource SidebarBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="3"
+                                    Margin="0,2,0,0">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 送信ボタン・サイドバーのボタン(緑の角丸) -->
+    <Style x:Key="PrimaryButton" TargetType="Button">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Background" Value="{DynamicResource AccentGreenBrush}"/>
+        <Setter Property="Padding" Value="22,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}"
+                            CornerRadius="{StaticResource CornerRadiusMedium}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentGreenHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentGreenPressedBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="bd" Property="Opacity" Value="0.4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- サイドバーの「新しい会議」ボタン -->
+    <Style x:Key="SidebarButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+        <Setter Property="Background" Value="{DynamicResource SidebarSelectedBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SidebarTextBrush}"/>
+        <Setter Property="Height" Value="38"/>
+    </Style>
+
+    <!-- 文字だけのボタン(「変更…」など。下線つき) -->
+    <Style x:Key="LinkButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource LinkTextBrush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <TextBlock Text="{TemplateBinding Content}" TextDecorations="Underline"
+                               Foreground="{TemplateBinding Foreground}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- サイドバー内の文字ボタン(うすい黄色で読みやすく) -->
+    <Style x:Key="SidebarLinkButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource SidebarAccentBrush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <TextBlock Text="{TemplateBinding Content}" TextDecorations="Underline"
+                               Foreground="{TemplateBinding Foreground}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- サイドバー下のメニューボタン(アイコン＋文字。ふだんは透明、マウスを乗せると背景が出る)
+         アイコンは Tag にアイコンフォントの文字を入れる(例: Tag="&#xE716;") -->
+    <Style x:Key="SidebarNavButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource SidebarAccentBrush}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="Margin" Value="0,0,0,2"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="Transparent" CornerRadius="{StaticResource CornerRadiusSmall}" Padding="10,7">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14"
+                                       Width="18" Margin="0,0,10,0" VerticalAlignment="Center"
+                                       Foreground="{TemplateBinding Foreground}"/>
+                            <TextBlock Text="{TemplateBinding Content}" VerticalAlignment="Center"
+                                       Foreground="{TemplateBinding Foreground}"/>
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource SidebarHoverBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- タイトルバーのメニューボタン(アイコン＋文字。下線なし、マウスを乗せると背景が出る)
+         アイコンは Tag にアイコンフォントの文字を入れる -->
+    <Style x:Key="TitleBarNavButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource TitleBarTextBrush}"/>
+        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,6,0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="Transparent" CornerRadius="{StaticResource CornerRadiusSmall}" Padding="8,4">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"
+                                       Margin="0,0,6,0" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource SidebarAccentBrush}"/>
+                            <TextBlock Text="{TemplateBinding Content}" VerticalAlignment="Center"
+                                       Foreground="{TemplateBinding Foreground}"/>
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource TitleBarButtonHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource TitleBarButtonPressedBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 見出しのアイコンだけのボタン(ログを開く・フォルダを開く。ふだんは目立たせず、マウスを乗せると背景が出る)
+         Content にアイコンフォントの文字を入れる -->
+    <Style x:Key="HeaderIconButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+        <Setter Property="Width" Value="32"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Margin" Value="0,0,2,0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="Transparent" CornerRadius="{StaticResource CornerRadiusSmall}">
+                        <TextBlock x:Name="icon" Text="{TemplateBinding Content}"
+                                   FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource PanelInsetBrush}"/>
+                            <Setter TargetName="icon" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource InputBorderBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 作業フォルダの札(フォルダのアイコン＋名前＋▾。押すと選び直す) -->
+    <Style x:Key="WorkDirChip" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="MaxWidth" Value="220"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{DynamicResource PanelInsetBrush}" BorderThickness="1"
+                            BorderBrush="{DynamicResource InputBorderBrush}" CornerRadius="{StaticResource CornerRadiusPill}"
+                            Padding="10,5">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Left" Text="&#xE8B7;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource AccentGreenBrush}"/>
+                            <TextBlock DockPanel.Dock="Right" Text="&#xE70D;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                       FontSize="9" Margin="6,1,0,0" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="{TemplateBinding Content}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                       Foreground="{TemplateBinding Foreground}"/>
+                        </DockPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentGreenBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 1本につながった切り替えの片側(外枠は呼ぶ側の Border。選ばれた方が緑) -->
+    <Style x:Key="SegmentButton" TargetType="RadioButton">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="bd" Padding="14,4" CornerRadius="{StaticResource CornerRadiusPill}" Background="Transparent">
+                        <TextBlock x:Name="tx" Text="{TemplateBinding Content}" Foreground="{DynamicResource TextMutedBrush}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="tx" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentGreenBrush}"/>
+                            <Setter TargetName="tx" Property="Foreground" Value="White"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- カードの任せる段階(読む / 読み書き / 全部)を、横に並べたボタンで選ぶ。選ばれた段階だけ色が付く(サイドバー用) -->
+    <Style x:Key="SidebarSegmentList" TargetType="ListBox">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBox">
+                    <Border Padding="2" HorizontalAlignment="Left" BorderThickness="1"
+                            Background="{DynamicResource SidebarInputBackgroundBrush}"
+                            BorderBrush="{DynamicResource SidebarBorderBrush}" CornerRadius="{StaticResource CornerRadiusPill}">
+                        <ItemsPresenter/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal"/>
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="ItemContainerStyle">
+            <Setter.Value>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="Cursor" Value="Hand"/>
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <Border x:Name="bd" Padding="8,3" CornerRadius="{StaticResource CornerRadiusPill}" Background="Transparent">
+                                    <ContentPresenter x:Name="tx" TextElement.FontSize="12"
+                                                      TextElement.Foreground="{DynamicResource SidebarMutedTextBrush}"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="tx" Property="TextElement.Foreground" Value="{DynamicResource SidebarTextBrush}"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="bd" Property="Background" Value="{DynamicResource SidebarAccentBrush}"/>
+                                        <Setter TargetName="tx" Property="TextElement.Foreground" Value="{DynamicResource SidebarBackgroundBrush}"/>
+                                        <Setter TargetName="tx" Property="TextElement.FontWeight" Value="SemiBold"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 宛先・画面切り替えの選択(丸いボタン。選ばれた方が緑) -->
+    <Style x:Key="TargetPill" TargetType="RadioButton">
+        <Setter Property="Margin" Value="0,0,8,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="bd" Padding="14,5" CornerRadius="{StaticResource CornerRadiusPill}"
+                            Background="{DynamicResource PanelInsetBrush}" BorderThickness="1"
+                            BorderBrush="{DynamicResource InputBorderBrush}">
+                        <TextBlock x:Name="tx" Text="{TemplateBinding Content}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentGreenBrush}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentGreenBrush}"/>
+                            <Setter TargetName="tx" Property="Foreground" Value="White"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 会議室のタブ(選ばれた部屋は明るく。マウスを乗せると色が付く) -->
+    <Style x:Key="RoomTabButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource SidebarTextBrush}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6,6,0,0" Padding="12,5">
+                        <ContentPresenter VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource SidebarHoverBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

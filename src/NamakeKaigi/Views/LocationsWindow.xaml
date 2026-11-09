@@ -1,0 +1,123 @@
+<Window x:Class="NamakeKaigi.Views.LocationsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="場所の設定" Width="620" SizeToContent="Height" MinWidth="520" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource MainBackgroundBrush}"
+        Foreground="{DynamicResource TextPrimaryBrush}"
+        FontFamily="Yu Gothic UI, Segoe UI, Meiryo" FontSize="13"
+        Icon="pack://application:,,,/NamakeKaigi;component/Assets/namake_icon.png">
+
+    <Window.Resources>
+        <Style x:Key="PrimaryBtn" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource AccentGreenBrush}"/>
+            <Setter Property="Padding" Value="18,7"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                CornerRadius="10" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentGreenHoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryBtn" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryButtonBackgroundBrush}"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource InputBorderBrush}"
+                                BorderThickness="1" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PathBox" TargetType="TextBox">
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Margin" Value="0,4"/>
+            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style x:Key="BrowseBtn" TargetType="Button" BasedOn="{StaticResource SecondaryBtn}">
+            <Setter Property="Content" Value="参照…"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Padding" Value="10,3"/>
+            <Setter Property="Margin" Value="6,4,0,4"/>
+        </Style>
+    </Window.Resources>
+
+    <StackPanel Margin="20,16">
+        <TextBlock Text="場所の設定" FontSize="17" FontWeight="Bold"/>
+        <TextBlock Text="空欄は、既定の場所を使います。保存すると、次の起動から効きます。"
+                   FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}" Margin="0,3,0,12" TextWrapping="Wrap"/>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="作業フォルダ(既定)" VerticalAlignment="Center"/>
+            <TextBox x:Name="WorkDirBox" Grid.Row="0" Grid.Column="1" Style="{StaticResource PathBox}"
+                     ToolTip="新しい会議室で、各AIが作業する場所です。会議室ごとの変更は、チャットの見出しの札から行えます"/>
+            <Button Grid.Row="0" Grid.Column="2" Style="{StaticResource BrowseBtn}" Click="OnBrowseFolder" Tag="{Binding ElementName=WorkDirBox}"/>
+
+            <TextBlock Grid.Row="1" Text="会議ログの保存先" VerticalAlignment="Center"/>
+            <TextBox x:Name="MeetingsDirBox" Grid.Row="1" Grid.Column="1" Style="{StaticResource PathBox}"
+                     ToolTip="空欄のときは、アプリ(exe)の隣の meetings フォルダです。相対パスは、アプリのフォルダから数えます"/>
+            <Button Grid.Row="1" Grid.Column="2" Style="{StaticResource BrowseBtn}" Click="OnBrowseFolder" Tag="{Binding ElementName=MeetingsDirBox}"/>
+
+            <TextBlock Grid.Row="2" Text="予約ファイル" VerticalAlignment="Center"/>
+            <TextBox x:Name="ScheduleFileBox" Grid.Row="2" Grid.Column="1" Style="{StaticResource PathBox}"
+                     ToolTip="自動実行の予約を保存する schedule.json です。空欄のときは、自動実行を使いません"/>
+            <Button Grid.Row="2" Grid.Column="2" Style="{StaticResource BrowseBtn}" Click="OnBrowseJson" Tag="{Binding ElementName=ScheduleFileBox}"/>
+
+            <TextBlock Grid.Row="3" Text="Claude Code の場所" VerticalAlignment="Center"/>
+            <TextBox x:Name="ClaudeBox" Grid.Row="3" Grid.Column="1" Style="{StaticResource PathBox}"
+                     ToolTip="claude の実行ファイルです。名前だけ(claude)なら、PATH から探します"/>
+            <Button Grid.Row="3" Grid.Column="2" Style="{StaticResource BrowseBtn}" Click="OnBrowseExe" Tag="{Binding ElementName=ClaudeBox}"/>
+
+            <TextBlock Grid.Row="4" Text="agy の場所" VerticalAlignment="Center"/>
+            <TextBox x:Name="AgyBox" Grid.Row="4" Grid.Column="1" Style="{StaticResource PathBox}"
+                     ToolTip="Antigravity の agy の実行ファイルです。見つからないときは、PATH から agy を探します"/>
+            <Button Grid.Row="4" Grid.Column="2" Style="{StaticResource BrowseBtn}" Click="OnBrowseExe" Tag="{Binding ElementName=AgyBox}"/>
+
+            <TextBlock Grid.Row="5" Text="Codex の場所" VerticalAlignment="Center"/>
+            <TextBox x:Name="CodexBox" Grid.Row="5" Grid.Column="1" Style="{StaticResource PathBox}"
+                     ToolTip="codex の実行ファイルです。名前だけ(codex)なら、PATH から探します"/>
+            <Button Grid.Row="5" Grid.Column="2" Style="{StaticResource BrowseBtn}" Click="OnBrowseExe" Tag="{Binding ElementName=CodexBox}"/>
+        </Grid>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="キャンセル" Style="{StaticResource SecondaryBtn}" Click="OnCancel" Margin="0,0,8,0" IsCancel="True"/>
+            <Button Content="保存" Style="{StaticResource PrimaryBtn}" Click="OnSave"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

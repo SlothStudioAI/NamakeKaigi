@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- アプリのバージョン(正本はここ1か所。画面のタイトルバー・配布zipの名前・exeのプロパティに使う) -->
+    <Version>0.9.0</Version>
+    <!-- 版にビルド時のコミットID(+以降)を付けない -->
+    <IncludeSourceRevisionInId>false</IncludeSourceRevisionInId>
+    <!-- exe・タスクバーのアイコン(16〜256pxを含む) -->
+    <ApplicationIcon>Assets\namake.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- アバター・マスコットは、画面から相対パスで参照する(Resource) -->
+    <Resource Include="Assets\**\*.png;Assets\**\*.jpg" />
+    <!-- 設定ファイルは、exeの隣にコピーする -->
+    <Content Include="settings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- リモート(スマホ用のWebページ)を配る小さなWebサーバー(Kestrel)。別のパッケージは増やさない -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <EmbeddedResource Include="Services\Remote\remote.html" LogicalName="remote.html" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="QRCoder" Version="1.8.1" />
+    <PackageReference Include="System.Speech" Version="10.0.14" />
+  </ItemGroup>
+
+</Project>

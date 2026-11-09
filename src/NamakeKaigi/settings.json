@@ -1,0 +1,89 @@
+{
+  "claude": {
+    "executable": "claude",
+    "model": "sonnet",
+    "extraArgs": [
+      "--disable-slash-commands",
+      "--strict-mcp-config",
+      "--tools",
+      "Read,Glob,Grep"
+    ],
+    "models": [
+      "sonnet",
+      "opus",
+      "haiku"
+    ],
+    "readOnlyNote": "[状態] いまは「読む」です。ファイルを読むことはできますが、書き換えとコマンドはできません。書き換えやコマンドが必要なときは、画面左で「読み書き」か「全部」に切り替えてもらうよう、ユーザーに伝えてください。",
+    "fullExtraArgs": [
+      "--permission-mode",
+      "auto"
+    ],
+    "fullNote": "[状態] いまは「全部」です。普段のClaude Codeと同じく、道具はすべて使えます(コマンド・Webを含む)。許可は自動判定で、頼まれた操作は確認なしで実行されます。消す・送る・公開する・pushするなど、戻せない操作や外に影響する操作は、実行する前に、何をするかを書いてユーザーの返事を待ってください。",
+    "enabledConnectors": [],
+    "connectorListCacheSec": 300,
+    "connectorListTimeoutSec": 30,
+    "writerExtraArgs": [
+      "--disable-slash-commands",
+      "--strict-mcp-config",
+      "--tools",
+      "Read,Edit,Write,Glob,Grep",
+      "--permission-mode",
+      "acceptEdits"
+    ]
+  },
+  "agy": {
+    "executable": "%USERPROFILE%/.gemini/bin/agy.exe",
+    "extraArgs": [
+      "--mode",
+      "plan"
+    ],
+    "noToolNote": "[状態] いまは読み取り専用です。作業フォルダの中のファイルは読んでかまいません(添付の画像も含む)。書き換えとコマンドの実行はしないでください。作業フォルダの外のファイルは、許可を聞けないので読めません。書き換えが必要なときは、画面左の「読み書き」に切り替えてもらうよう、ユーザーに伝えてください。\n\n",
+    "writerExtraArgs": [
+      "--mode",
+      "accept-edits"
+    ],
+    "writerNote": "[状態] いまは「読み書き」です。ファイルを書き換えるのは、作業フォルダの中だけにしてください。作業フォルダの外には書かないでください。コマンドは使えません(実行しようとすると自動で断られます)。git などのコマンドが必要なときは、クローディか、普段のCLIに頼むよう、ユーザーに伝えてください。\n\n",
+    "writerWarning": "注意: 作業フォルダの外にも書けてしまいます(Claudeと違い、仕組みでは止められません)。",
+    "fullExtraArgs": [
+      "--dangerously-skip-permissions"
+    ],
+    "fullNote": "[状態] いまは「全部」です。普段のAntigravityのTurboと同じく、ファイルの書き換えもコマンド(git・ビルド・テストなど)も、確認なしで実行されます。危ない操作を止める判定はありません。消す・送る・公開する・pushするなど、戻せない操作や外に影響する操作は、実行する前に、何をするかを書いてユーザーの返事を待ってください。\n\n",
+    "fullWarning": "注意: 危ない操作を止める判定がありません(普段のAntigravityのTurboと同じ)。戻せない操作は、頼み方に気をつけてください。",
+    "model": "gemini-4-argon-medium",
+    "models": [
+      "gemini-4-argon-medium",
+      "gemini-4-argon-low",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low"
+    ]
+  },
+  "roster": {
+    "roots": [],
+    "excludeDirs": [
+      ".git",
+      "node_modules",
+      "bin",
+      "obj",
+      "_ゴミ箱"
+    ],
+    "maxDepth": 6,
+    "includeUserDirs": true
+  },
+  "roomTitleMaxChars": 30,
+  "streamRenderIntervalMs": 200,
+  "linkProbe": {
+    "timeoutMs": 300,
+    "cacheSec": 5,
+    "slowDriveSec": 60
+  },
+  "workDir": "",
+  "meetingsDir": "meetings",
+  "maxRooms": 10,
+  "scheduleFile": "",
+  "maxInjectChars": 4000,
+  "timeoutSec": 600,
+  "remote": {
+    "enabled": false,
+    "port": 8765
+  }
+}

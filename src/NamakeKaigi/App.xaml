@@ -1,0 +1,12 @@
+﻿<Application x:Class="NamakeKaigi.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- 森テーマ(Sloth Studio からコピー)。色・角丸・スクロールバー等の共有リソース -->
+                <ResourceDictionary Source="Themes/ForestTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

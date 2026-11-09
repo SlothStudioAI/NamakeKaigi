@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+*.user
+*_wpftmp.csproj
+artifacts/
+release/
+meetings/
+schedule/schedule.json
+schedule/schedule-history.jsonl

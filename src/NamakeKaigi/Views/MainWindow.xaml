@@ -1,0 +1,666 @@
+<Window x:Class="NamakeKaigi.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:vm="clr-namespace:NamakeKaigi.ViewModels"
+        xmlns:views="clr-namespace:NamakeKaigi.Views"
+        Title="{Binding AppTitle, FallbackValue=NamakeKaigi}" Width="1040" Height="720" MinWidth="720" MinHeight="480"
+        Background="{DynamicResource MainBackgroundBrush}"
+        FontFamily="Yu Gothic UI, Segoe UI, Meiryo" FontSize="14"
+        Icon="pack://application:,,,/NamakeKaigi;component/Assets/namake_icon.png">
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="38"
+                            ResizeBorderThickness="6"
+                            GlassFrameThickness="1"
+                            CornerRadius="8"
+                            UseAeroCaptionButtons="False"/>
+    </shell:WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/ChatTemplates.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid x:Name="RootGrid">
+        <Grid.Style>
+            <Style TargetType="Grid">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}" Value="Maximized">
+                        <Setter Property="Margin" Value="6"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Grid.Style>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="{StaticResource TitleBarHeight}"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ===== 上: 森の緑の独自タイトルバー ===== -->
+        <Border Grid.Row="0" Background="{DynamicResource SidebarBackgroundBrush}"
+                BorderBrush="{DynamicResource TitleBarBorderBrush}" BorderThickness="0,0,0,1">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button x:Name="StopSpeakingButton" Content="止める" Tag="&#xE71A;"
+                            Command="{Binding StopSpeakingCommand}"
+                            Visibility="{Binding IsSpeaking, Converter={StaticResource BoolToVisibility}}"
+                            Style="{StaticResource TitleBarNavButton}"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                            ToolTip="読み上げを止めます(順番待ちのものも止まります)"/>
+                    <Button x:Name="RemoteButton" Content="スマホ" Tag="&#xE8EA;" Click="OnOpenRemoteQr"
+                            Style="{StaticResource TitleBarNavButton}" Visibility="Collapsed"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                            ToolTip="スマホでつなぐためのQRコードを出します(リモートが動いているときだけ)"/>
+                    <Button x:Name="RosterButton" Content="名簿" Tag="&#xE716;" Click="OnOpenRoster"
+                            Style="{StaticResource TitleBarNavButton}"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                            ToolTip="AIごとのメンバーと、行動ルールを見ます(会議には参加しません)"/>
+                    <Button x:Name="SettingsButton" Content="設定" Tag="&#xE713;" Click="OnOpenSettings"
+                            Style="{StaticResource TitleBarNavButton}" Margin="0,0,10,0"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                            ToolTip="配色テーマ、返答の制限時間、イラストの表示、読み上げ、表示名を設定します"/>
+                    <Button Content="─" Style="{StaticResource TitleBarButtonStyle}" Click="OnMinimizeWindow" ToolTip="最小化"/>
+                    <Button Content="□" Style="{StaticResource TitleBarButtonStyle}" Click="OnMaximizeRestoreWindow" ToolTip="最大化 / 元に戻す"/>
+                    <Button Content="✕" Style="{StaticResource TitleBarCloseButtonStyle}" Click="OnCloseWindow" ToolTip="閉じる"/>
+                </StackPanel>
+                <!-- アプリの看板(アイコン・名前・MDD)。簡易表示でも変えない -->
+                <!-- 狭いときは、右の版(v0.9.0)から先に切れる(看板の名前は残す) -->
+                <Grid VerticalAlignment="Center" Margin="12,0,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Image Grid.Column="0" Source="pack://application:,,,/NamakeKaigi;component/Assets/namake_icon.png" Width="20" Height="20"
+                           Margin="0,0,8,0"/>
+                    <TextBlock Grid.Column="1" Text="{Binding WindowHeaderTitle}" Foreground="{DynamicResource TitleBarTextBrush}"
+                               FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{Binding WindowHeaderVersion}" Foreground="{DynamicResource TitleBarTextBrush}"
+                               Opacity="0.6" FontSize="11" Margin="8,1,0,0" VerticalAlignment="Center"
+                               TextTrimming="None" TextWrapping="NoWrap" ClipToBounds="True"/>
+                </Grid>
+            </DockPanel>
+        </Border>
+
+        <!-- ===== 会議室のタブ(別の話題を同時に進める。数の上限は settings.json の maxRooms) ===== -->
+        <Border Grid.Row="1" Background="{DynamicResource SidebarBackgroundBrush}"
+                BorderBrush="{DynamicResource TitleBarBorderBrush}" BorderThickness="0,0,0,1">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Rooms}" Value="{x:Null}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <StackPanel Orientation="Horizontal" Margin="8,4,8,0">
+                <ItemsControl ItemsSource="{Binding Rooms.Items}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,4,0">
+                                <TextBox Text="{Binding RoomTitleEdit, UpdateSourceTrigger=PropertyChanged}" MinWidth="120" Padding="4,2" Margin="0,0,4,0"
+                                         VerticalAlignment="Center" FontSize="13"
+                                         Background="{DynamicResource InputBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                         BorderBrush="{DynamicResource InputBorderBrush}"
+                                         KeyDown="OnRoomTitleEditKeyDown" LostKeyboardFocus="OnRoomTitleEditLostFocus"
+                                         IsVisibleChanged="OnRoomTitleEditVisibleChanged"
+                                         ToolTip="Enterで決める / Escでやめる">
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRenamingRoom}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
+                                <Button Command="{Binding SelectRoomCommand}" MouseDoubleClick="OnRoomTabDoubleClick"
+                                        ToolTip="ダブルクリックで、この部屋の名前を変えます">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource RoomTabButton}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRenamingRoom}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="●" Margin="0,0,6,0" VerticalAlignment="Center" FontSize="10"
+                                                   Foreground="{DynamicResource SidebarAccentBrush}"
+                                                   ToolTip="この部屋で、AIが返答を作っています"
+                                                   Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}"/>
+                                        <TextBlock Text="{Binding RoomTitle}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsCurrentRoom}" Value="True">
+                                                            <Setter Property="FontWeight" Value="Bold"/>
+                                                            <Setter Property="Foreground" Value="{DynamicResource SidebarAccentBrush}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Button>
+                                <Button Content="✕" Command="{Binding CloseRoomCommand}" Style="{StaticResource RoomTabButton}" FontSize="10"
+                                        ToolTip="この部屋を閉じます(裏で動いているAIも止まります)"
+                                        Visibility="{Binding Rooms.CanCloseRoom, Converter={StaticResource BoolToVisibility}}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Content="＋" Command="{Binding Rooms.AddRoomCommand}" Style="{StaticResource RoomTabButton}"
+                        ToolTip="会議室を増やします(別の話題を同時に進められます)"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ===== 下: メイン領域(左サイドバー＋右チャット) ===== -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="SidebarColumn" Width="248" MinWidth="200" MaxWidth="480"/>
+                <ColumnDefinition Width="*" MinWidth="420"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ===== 左: サイドバー(参加者) ===== -->
+            <Border x:Name="SidebarPanel" Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}">
+                <DockPanel Margin="14,14">
+                    <StackPanel DockPanel.Dock="Bottom">
+                        <Button x:Name="ScheduleButton" Content="自動実行" Tag="&#xE823;" Click="OnOpenSchedule"
+                                Style="{StaticResource SidebarNavButton}"
+                                Visibility="Collapsed"
+                                ToolTip="決めた時刻に、新しい会議室でAIにプロンプトを送ります(夜の自動制作など)"/>
+                        <Button Content="過去の会議" Tag="&#xE81C;" Click="OnOpenPastMeetings"
+                                Style="{StaticResource SidebarNavButton}"
+                                ToolTip="過去の会議の一覧から選んで、続きから話します"/>
+                        <Button Content="＋ 新しい会議" Style="{StaticResource SidebarButton}"
+                                Command="{Binding NewMeetingCommand}" Margin="0,8,0,0"/>
+                    </StackPanel>
+                    <!-- アプリ名の見出しは置かない(名前はタイトルバーとタスクバーに出す。メンバーのカードを上に詰めるため) -->
+                    <TextBlock DockPanel.Dock="Top" Text="MEMBERS" Foreground="{DynamicResource SidebarMutedTextBrush}"
+                               FontSize="11" FontWeight="SemiBold" Margin="4,0,0,8"/>
+                    <ItemsControl ItemsSource="{Binding Members}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border x:Name="card" Background="{DynamicResource SidebarHoverBrush}" Margin="0,0,0,8" Padding="10"
+                                        BorderThickness="2" BorderBrush="Transparent"
+                                        CornerRadius="{StaticResource CornerRadiusMedium}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid Width="42" Height="42" VerticalAlignment="Top">
+                                            <Ellipse Width="42" Height="42"
+                                                     Visibility="{Binding ShowImageAvatar, Converter={StaticResource BoolToVisibility}}">
+                                                <Ellipse.Fill>
+                                                    <ImageBrush ImageSource="{Binding AvatarUri}" Stretch="UniformToFill"/>
+                                                </Ellipse.Fill>
+                                            </Ellipse>
+                                            <Border Width="42" Height="42" CornerRadius="21"
+                                                    Background="{DynamicResource SidebarLogoBrush}"
+                                                    Visibility="{Binding ShowInitialAvatar, Converter={StaticResource BoolToVisibility}}">
+                                                <TextBlock Text="{Binding InitialText}" Foreground="White" FontWeight="Bold" FontSize="16"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </Grid>
+                                        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource SidebarTextBrush}"/>
+                                            <TextBlock Text="{Binding SubTitle}" FontSize="11"
+                                                       Foreground="{DynamicResource SidebarMutedTextBrush}"/>
+                                            <!-- この会議に参加するか(AIだけ。会議を始める前に選ぶ。外すと、宛先・「全員」・査読の相手から外れる) -->
+                                            <CheckBox IsChecked="{Binding IsPresent}" IsEnabled="{Binding CanChangePresence}"
+                                                      Margin="0,4,0,0" FontSize="11"
+                                                      Visibility="{Binding CanChoosePresence, Converter={StaticResource BoolToVisibility}}"
+                                                      Foreground="{DynamicResource SidebarTextBrush}"
+                                                      ToolTip="{Binding PresenceTooltip}">
+                                                <TextBlock Text="この会議に参加する"/>
+                                            </CheckBox>
+                                            <!-- いまのモデル · 労力(AIだけ)。押すと、その場でモデルと労力を選ぶ欄が開く(選ぶと、次の発言から効く) -->
+                                            <ToggleButton x:Name="modelToggle" HorizontalAlignment="Left" Cursor="Hand"
+                                                          Visibility="{Binding ShowModelLine, Converter={StaticResource BoolToVisibility}}"
+                                                          IsEnabled="{Binding CanChooseModel}"
+                                                          ToolTip="いまのモデルと労力です。押すと選び直せます(次の発言から効きます)">
+                                                <!-- 開いている間は押せなくする(外を押して閉じた直後に、また開いてしまうのを防ぐ) -->
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsOpen, ElementName=modelPopup}" Value="True">
+                                                                <Setter Property="IsHitTestVisible" Value="False"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ToggleButton.Style>
+                                                <ToggleButton.Template>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <StackPanel Orientation="Horizontal" Background="Transparent">
+                                                            <TextBlock x:Name="label" Text="{Binding ModelSummary}" FontSize="11" TextWrapping="Wrap"
+                                                                       Foreground="{DynamicResource SidebarAccentBrush}"/>
+                                                            <TextBlock x:Name="arrow" Text=" ▾" FontSize="11"
+                                                                       Foreground="{DynamicResource SidebarAccentBrush}"/>
+                                                        </StackPanel>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="label" Property="TextDecorations" Value="Underline"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                <Setter TargetName="arrow" Property="Visibility" Value="Collapsed"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </ToggleButton.Template>
+                                            </ToggleButton>
+                                            <Popup x:Name="modelPopup" IsOpen="{Binding IsChecked, ElementName=modelToggle}" StaysOpen="False"
+                                                   PlacementTarget="{Binding ElementName=modelToggle}" Placement="Bottom"
+                                                   AllowsTransparency="True" PopupAnimation="Fade">
+                                                <Border Background="{DynamicResource SidebarBackgroundBrush}" BorderBrush="{DynamicResource InputBorderBrush}"
+                                                        BorderThickness="1" CornerRadius="{StaticResource CornerRadiusSmall}" Padding="8" Margin="0,4,0,0">
+                                                    <Grid MinWidth="200">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <ComboBox Grid.Column="0"
+                                                                  Style="{StaticResource SidebarComboBox}"
+                                                                  ItemsSource="{Binding ModelOptions}" DisplayMemberPath="Label"
+                                                                  SelectedValuePath="Id" SelectedValue="{Binding SelectedModelId}"
+                                                                  Visibility="{Binding ShowSingleModelChoice, Converter={StaticResource BoolToVisibility}}"
+                                                                  ToolTip="モデルを選ぶと、次の発言から切り替わります"/>
+                                                        <!-- 一覧が「モデル名 (段階)」の組み合わせで並ぶAI(ジェミリー)は、モデル名と段階の2つの欄で選ぶ -->
+                                                        <ComboBox Grid.Column="0"
+                                                                  Style="{StaticResource SidebarComboBox}"
+                                                                  ItemsSource="{Binding ModelFamilies}" SelectedItem="{Binding SelectedFamily}"
+                                                                  Visibility="{Binding ShowVariantChoice, Converter={StaticResource BoolToVisibility}}"
+                                                                  ToolTip="モデルを選ぶと、次の発言から切り替わります"/>
+                                                        <ComboBox Grid.Column="1"
+                                                                  Style="{StaticResource SidebarComboBox}"
+                                                                  ItemsSource="{Binding VariantLevels}" DisplayMemberPath="Label"
+                                                                  SelectedValuePath="Id" SelectedValue="{Binding SelectedVariantLevelId}"
+                                                                  Margin="4,0,0,0" MinWidth="48"
+                                                                  Visibility="{Binding ShowVariantChoice, Converter={StaticResource BoolToVisibility}}"
+                                                                  ToolTip="段階(低/中/高)を選ぶと、次の発言から切り替わります"/>
+                                                        <ComboBox Grid.Column="1"
+                                                                  Style="{StaticResource SidebarComboBox}"
+                                                                  ItemsSource="{Binding EffortOptions}" DisplayMemberPath="Label"
+                                                                  SelectedValuePath="Id" SelectedValue="{Binding SelectedEffortId}"
+                                                                  Margin="4,0,0,0" MinWidth="48"
+                                                                  Visibility="{Binding CanChooseEffort, Converter={StaticResource BoolToVisibility}}"
+                                                                  ToolTip="労力(エフォート: 低/中/高/超高/最大)を選ぶと、次の発言から --effort で効きます"/>
+                                                    </Grid>
+                                                </Border>
+                                            </Popup>
+                                            <!-- 使用量の枠(5時間・7日。Claudeのみ、返答のたびに更新) -->
+                                            <TextBlock x:Name="usageText" Text="{Binding UsageText}" FontSize="10.5" TextWrapping="Wrap"
+                                                       Margin="0,2,0,0"
+                                                       Visibility="{Binding HasUsage, Converter={StaticResource BoolToVisibility}}"
+                                                       Foreground="{DynamicResource SidebarMutedTextBrush}"
+                                                       ToolTip="{Binding UsageTooltip}"/>
+                                        </StackPanel>
+                                        <!-- ここから下は、アイコンの下まで横いっぱいに使う(段階のボタンを並べる幅を取るため) -->
+                                        <StackPanel Grid.Row="1" Grid.ColumnSpan="2">
+                                            <!-- 任せる段階(書き換えられるAIだけ。読む / 読み書き / 全部 のボタン。押すと、次の発言から効く) -->
+                                            <!-- 右の歯車で、ツール・許可の設定画面を開く(ホバーで今の許可一覧) -->
+                                            <Grid Margin="0,6,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ListBox Style="{StaticResource SidebarSegmentList}" VerticalAlignment="Center"
+                                                         Visibility="{Binding CanWrite, Converter={StaticResource BoolToVisibility}}"
+                                                         ItemsSource="{Binding LevelOptions}" DisplayMemberPath="Label"
+                                                         SelectedValuePath="Id" SelectedValue="{Binding SelectedLevelId}"
+                                                         ToolTip="{Binding HarnessTooltip}"/>
+                                                <Button Grid.Column="1" Content="&#xE713;" Click="OnOpenHarness"
+                                                        Style="{StaticResource HeaderIconButton}" Width="28" Height="28" Margin="4,0,0,0"
+                                                        Foreground="{DynamicResource SidebarMutedTextBrush}"
+                                                        Visibility="{Binding CanEditHarness, Converter={StaticResource BoolToVisibility}}"
+                                                        ToolTip="{Binding HarnessTooltip}"/>
+                                            </Grid>
+                                            <!-- 書く担当にしたときの注意(あるAIだけ) -->
+                                            <!-- 文は出さず「!」マークだけ置き、マウスを乗せたときに文を見せる -->
+                                            <Border Width="16" Height="16" CornerRadius="8" Margin="0,4,0,0" HorizontalAlignment="Left"
+                                                    Background="{DynamicResource SidebarAccentBrush}"
+                                                    Cursor="Help" ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="30000"
+                                                    Visibility="{Binding ShowWriterWarning, Converter={StaticResource BoolToVisibility}}">
+                                                <TextBlock Text="!" FontSize="11" FontWeight="Bold" Foreground="White"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <Border.ToolTip>
+                                                    <TextBlock Text="{Binding DisplayWarning}" TextWrapping="Wrap" MaxWidth="280"/>
+                                                </Border.ToolTip>
+                                            </Border>
+                                            <TextBlock x:Name="status" Text="{Binding StatusText}" FontSize="11" Margin="0,4,0,0"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource SidebarMutedTextBrush}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <DataTemplate.Triggers>
+                                    <!-- ユーザー本人のカードは出さない(入力欄の横に、小さなアバターを置いた) -->
+                                    <DataTrigger Binding="{Binding Participant.Id}" Value="user">
+                                        <Setter TargetName="card" Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                    <!-- CLIが見つからないAIのカードは出さない(入っていない人の画面に、使えないAIを並べない) -->
+                                    <DataTrigger Binding="{Binding IsInstalled}" Value="False">
+                                        <Setter TargetName="card" Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                    <!-- 任せる段階を、カードの色で見分けられるようにする(読むだけ=そのまま / 一部できる=黄 / 何でもできる=赤。何でもできるが優先) -->
+                                    <DataTrigger Binding="{Binding IsWriter}" Value="True">
+                                        <Setter TargetName="card" Property="Background" Value="#55E0A030"/>
+                                        <Setter TargetName="card" Property="BorderBrush" Value="#E0A030"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsFull}" Value="True">
+                                        <Setter TargetName="card" Property="Background" Value="#66E0453F"/>
+                                        <Setter TargetName="card" Property="BorderBrush" Value="#E0453F"/>
+                                    </DataTrigger>
+                                    <!-- 参加していない人のカードは、薄くする -->
+                                    <DataTrigger Binding="{Binding IsPresent}" Value="False">
+                                        <Setter TargetName="card" Property="Opacity" Value="0.5"/>
+                                    </DataTrigger>
+                                    <!-- 参加しておらず、あとから参加にもできない人(会議が始まったあと)のカードは、隠す -->
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsPresent}" Value="False"/>
+                                            <Condition Binding="{Binding CanChangePresence}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter TargetName="card" Property="Visibility" Value="Collapsed"/>
+                                    </MultiDataTrigger>
+                                    <DataTrigger Binding="{Binding IsThinking}" Value="True">
+                                        <Setter TargetName="status" Property="Foreground" Value="{DynamicResource SidebarAccentBrush}"/>
+                                        <Setter TargetName="status" Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsUsageHigh}" Value="True">
+                                        <Setter TargetName="usageText" Property="Foreground" Value="{DynamicResource SidebarAccentBrush}"/>
+                                        <Setter TargetName="usageText" Property="FontWeight" Value="SemiBold"/>
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </Border>
+
+            <!-- ===== 右: チャット ===== -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- 見出し(1行): 左の列を畳むボタン、会議室の名前、ログ・フォルダを開くボタン、作業フォルダの札、画面の切り替え
+                     パスは長いので、ボタンに乗せたときの説明に出す -->
+                <Grid Grid.Row="0" Margin="12,14,28,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <!-- 左のメンバー欄を縮める / 広げるボタン(畳んだあとも、ここから戻せる) -->
+                    <Button x:Name="SidebarToggleButton" Content="&#xE76B;" Click="OnToggleSidebar"
+                            Style="{StaticResource HeaderIconButton}" Margin="0,0,6,0" VerticalAlignment="Center"
+                            ToolTip="左のメンバー欄を縮めます"/>
+                    <TextBlock Grid.Column="1" Text="{Binding RoomTitle}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding RoomTitle}"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                        <!-- ログを開く(保存先フォルダは、右クリックのメニューから開く) -->
+                        <Button x:Name="OpenLogButton" Content="&#xE8A5;" Click="OnOpenLogFile" Style="{StaticResource HeaderIconButton}">
+                            <Button.ToolTip>
+                                <TextBlock Text="{Binding LogPath, StringFormat=この会議のログを開きます(右クリックで保存先フォルダ)&#x0a;{0}}"/>
+                            </Button.ToolTip>
+                            <Button.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="ログを開く" Click="OnOpenLogFile"/>
+                                    <MenuItem Header="保存先フォルダを開く" Click="OnOpenLogFolder"/>
+                                </ContextMenu>
+                            </Button.ContextMenu>
+                        </Button>
+                        <!-- 作業フォルダ(ここでAIがファイルを読み書きする)。変更すると、次の発言から効く -->
+                        <Button x:Name="WorkDirButton" Content="{Binding WorkDirName}" Click="OnChooseWorkDir"
+                                Style="{StaticResource WorkDirChip}" Margin="8,0,0,0">
+                            <Button.ToolTip>
+                                <TextBlock Text="{Binding WorkDir, StringFormat=作業フォルダ(AIがここで読み書きします。押すと選び直せます。次の発言から効きます)&#x0a;{0}}"/>
+                            </Button.ToolTip>
+                        </Button>
+                    </StackPanel>
+                    <Border Grid.Column="3" VerticalAlignment="Center" Margin="16,0,0,0" Padding="3"
+                            Background="{DynamicResource PanelInsetBrush}" BorderThickness="1"
+                            BorderBrush="{DynamicResource InputBorderBrush}" CornerRadius="{StaticResource CornerRadiusPill}">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton GroupName="view" Content="まとめて" Style="{StaticResource SegmentButton}"
+                                         IsChecked="{Binding IsTimelineView}" ToolTip="全員の発言を、時系列に並べて見ます"/>
+                            <RadioButton GroupName="view" Content="別々に" Style="{StaticResource SegmentButton}"
+                                         IsChecked="{Binding IsSplitView}" ToolTip="AIごとに列を分けて見ます"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- まとめて見る: 全員の発言を時系列に並べる -->
+                <!-- 発言が増えても重くならないよう、見えている分だけ作る(仮想化。VirtualChatListTemplate) -->
+                <ItemsControl x:Name="ChatList" Grid.Row="1" ItemsSource="{Binding Messages}"
+                              ItemTemplate="{StaticResource MessageTemplate}"
+                              Template="{StaticResource VirtualChatListTemplate}"
+                              ItemsPanel="{StaticResource VirtualChatPanel}" Padding="28,4,28,4"
+                              VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel"
+                              VirtualizingPanel.CacheLengthUnit="Page" VirtualizingPanel.CacheLength="1,1"
+                              Visibility="{Binding IsTimelineView, Converter={StaticResource BoolToVisibility}}">
+                    <ItemsControl.Resources>
+                        <!-- 1列で広いので、吹き出しも広く使う(右に大きな空白ができないように) -->
+                        <sys:Double x:Key="BubbleMaxWidth">960</sys:Double>
+                    </ItemsControl.Resources>
+                </ItemsControl>
+
+                <!-- 別々に見る: 参加している人だけ、列を出す(クローディ・ジェミリー・チャッピー。幅と隙間は、MainWindow.xaml.cs の UpdateSplitColumns が参加者に合わせる) -->
+                <Grid x:Name="SplitGrid" Grid.Row="1" Margin="20,0,20,0"
+                      Visibility="{Binding IsSplitView, Converter={StaticResource BoolToVisibility}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="240"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*" MinWidth="240"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="*" MinWidth="240"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 列の仕切り(ドラッグで列の比率を変える) -->
+                    <GridSplitter x:Name="ColumnSplitter" Grid.Column="1" Width="6" HorizontalAlignment="Center"
+                                  VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Margin="0,8"
+                                  Style="{StaticResource PaneSplitter}"
+                                  ToolTip="ドラッグで、列の幅を変えます"/>
+                    <GridSplitter x:Name="ColumnSplitter2" Grid.Column="3" Width="6" HorizontalAlignment="Center"
+                                  VerticalAlignment="Stretch" ResizeBehavior="PreviousAndNext" Margin="0,8"
+                                  Style="{StaticResource PaneSplitter}"
+                                  ToolTip="ドラッグで、列の幅を変えます"/>
+
+                    <Border Grid.Column="0" Background="{DynamicResource PanelBackgroundBrush}" BorderThickness="1"
+                            Visibility="{Binding ClaudePresent, Converter={StaticResource BoolToVisibility}}"
+                            BorderBrush="{DynamicResource PanelBorderBrush}" CornerRadius="{StaticResource CornerRadiusMedium}">
+                        <DockPanel>
+                            <ContentControl DockPanel.Dock="Top" Margin="14,10" Content="{Binding ClaudeMember}"
+                                            ContentTemplate="{StaticResource ColumnHeaderTemplate}"/>
+                            <ItemsControl x:Name="ClaudeList" ItemsSource="{Binding ClaudeMessages}" ItemTemplate="{StaticResource MessageTemplate}"
+                                          Template="{StaticResource VirtualChatListTemplate}" ItemsPanel="{StaticResource VirtualChatPanel}"
+                                          Padding="10,0,10,4" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel"
+                              VirtualizingPanel.CacheLengthUnit="Page" VirtualizingPanel.CacheLength="1,1"/>
+                        </DockPanel>
+                    </Border>
+
+                    <Border Grid.Column="2" Background="{DynamicResource PanelBackgroundBrush}" BorderThickness="1"
+                            Visibility="{Binding GeminiPresent, Converter={StaticResource BoolToVisibility}}"
+                            BorderBrush="{DynamicResource PanelBorderBrush}" CornerRadius="{StaticResource CornerRadiusMedium}">
+                        <DockPanel>
+                            <ContentControl DockPanel.Dock="Top" Margin="14,10" Content="{Binding GeminiMember}"
+                                            ContentTemplate="{StaticResource ColumnHeaderTemplate}"/>
+                            <ItemsControl x:Name="GeminiList" ItemsSource="{Binding GeminiMessages}" ItemTemplate="{StaticResource MessageTemplate}"
+                                          Template="{StaticResource VirtualChatListTemplate}" ItemsPanel="{StaticResource VirtualChatPanel}"
+                                          Padding="10,0,10,4" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel"
+                              VirtualizingPanel.CacheLengthUnit="Page" VirtualizingPanel.CacheLength="1,1"/>
+                        </DockPanel>
+                    </Border>
+
+                    <Border Grid.Column="4" Background="{DynamicResource PanelBackgroundBrush}" BorderThickness="1"
+                            Visibility="{Binding ChappyPresent, Converter={StaticResource BoolToVisibility}}"
+                            BorderBrush="{DynamicResource PanelBorderBrush}" CornerRadius="{StaticResource CornerRadiusMedium}">
+                        <DockPanel>
+                            <ContentControl DockPanel.Dock="Top" Margin="14,10" Content="{Binding ChappyMember}"
+                                            ContentTemplate="{StaticResource ColumnHeaderTemplate}"/>
+                            <ItemsControl x:Name="ChappyList" ItemsSource="{Binding ChappyMessages}" ItemTemplate="{StaticResource MessageTemplate}"
+                                          Template="{StaticResource VirtualChatListTemplate}" ItemsPanel="{StaticResource VirtualChatPanel}"
+                                          Padding="10,0,10,4" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel"
+                              VirtualizingPanel.CacheLengthUnit="Page" VirtualizingPanel.CacheLength="1,1"/>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+
+                <!-- 入力欄(ファイル・フォルダのドラッグ&ドロップに対応) -->
+                <Border x:Name="InputAreaBorder" Grid.Row="2" Background="{DynamicResource PanelBackgroundBrush}" BorderThickness="0,1,0,0"
+                        BorderBrush="{DynamicResource PanelBorderBrush}" Padding="28,12,28,16" Margin="0,12,0,0"
+                        AllowDrop="True" PreviewDragOver="OnInputDragOver" PreviewDrop="OnInputDrop">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="宛先" VerticalAlignment="Center" Margin="0,0,12,0"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                            <!-- 参加していない人の宛先ボタンは出さない。AIが1人だけ(1on1)のときは「全員」も出さない -->
+                            <RadioButton GroupName="target" Content="{Binding ClaudeDisplayName}" Style="{StaticResource TargetPill}"
+                                         IsChecked="{Binding TargetClaude}"
+                                         Visibility="{Binding ClaudePresent, Converter={StaticResource BoolToVisibility}}"/>
+                            <RadioButton GroupName="target" Content="{Binding GeminiDisplayName}" Style="{StaticResource TargetPill}"
+                                         IsChecked="{Binding TargetGemini}"
+                                         Visibility="{Binding GeminiPresent, Converter={StaticResource BoolToVisibility}}"/>
+                            <RadioButton GroupName="target" Content="{Binding ChappyDisplayName}" Style="{StaticResource TargetPill}"
+                                         IsChecked="{Binding TargetChappy}"
+                                         Visibility="{Binding ChappyPresent, Converter={StaticResource BoolToVisibility}}"
+                                         ToolTip="ChatGPT (Codex)。「全員」のときは、同時でも「〇〇が先」でも答えます"/>
+                            <RadioButton GroupName="target" Content="全員" Style="{StaticResource TargetPill}"
+                                         IsChecked="{Binding TargetEveryone}"
+                                         Visibility="{Binding ShowEveryoneTarget, Converter={StaticResource BoolToVisibility}}"/>
+                            <!-- 「全員」のときだけ、答える順番を選ぶ(同時／〇〇が先) -->
+                            <ComboBox Style="{StaticResource SidebarComboBox}"
+                                      ItemsSource="{Binding AllOrderOptions}"
+                                      DisplayMemberPath="Label"
+                                      SelectedValuePath="Id"
+                                      SelectedValue="{Binding SelectedAllOrder}"
+                                      Visibility="{Binding ShowAllOrderChoice, Converter={StaticResource BoolToVisibility}}"
+                                      VerticalAlignment="Center" Margin="4,0,0,0" MinWidth="120"
+                                      ToolTip="「全員」宛ての答える順番です。同時は独立した意見。「〇〇が先」は、先の人が答えてから、残りの人がその答えを読んで意見を言います(2人だけで、あとの人が「読み書き」以上なら続きの作業)。次の発言から効き、settings.json にも保存されます"/>
+                        </StackPanel>
+
+                        <!-- 「全員」のとき、いまの順番と2人の段階で何が起きるか(作ってから確認／考えてから作る など)を一言で出す -->
+                        <TextBlock Text="{Binding AllOrderHint}" FontSize="12" TextWrapping="Wrap" Margin="2,-4,0,10"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   Visibility="{Binding TargetEveryone, Converter={StaticResource BoolToVisibility}}"/>
+
+                        <!-- 添付されたファイル・フォルダのチップ一覧(あるときだけ表示) -->
+                        <ItemsControl ItemsSource="{Binding Attachments}" Margin="0,0,0,8"
+                                      Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVisibility}}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource PanelInsetBrush}" BorderBrush="{DynamicResource InputBorderBrush}"
+                                            BorderThickness="1" CornerRadius="12" Padding="10,3" Margin="0,0,6,4"
+                                            ToolTip="{Binding FullPath}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding ChipText}" FontSize="11.5" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}" MaxWidth="460"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <Button Content="✕" Click="OnRemoveAttachment" Style="{StaticResource LinkButton}"
+                                                    Margin="8,0,0,0" FontSize="11" ToolTip="この添付を外します"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Background="{DynamicResource InputBackgroundBrush}" BorderThickness="1"
+                                    BorderBrush="{DynamicResource InputBorderBrush}"
+                                    CornerRadius="{StaticResource CornerRadiusMedium}" Padding="12,8">
+                                <DockPanel LastChildFill="True">
+                                    <!-- 自分のアバター(サイドバーの「あなた」のカードの代わり。マウスを乗せると名前が出る) -->
+                                    <Grid DockPanel.Dock="Left" DataContext="{Binding UserMember}" Width="28" Height="28"
+                                          VerticalAlignment="Top" Margin="0,10,10,0" ToolTip="{Binding DisplayName}">
+                                        <Ellipse Width="28" Height="28"
+                                                 Visibility="{Binding ShowImageAvatar, Converter={StaticResource BoolToVisibility}}">
+                                            <Ellipse.Fill>
+                                                <ImageBrush ImageSource="{Binding AvatarUri}" Stretch="UniformToFill"/>
+                                            </Ellipse.Fill>
+                                        </Ellipse>
+                                        <Border Width="28" Height="28" CornerRadius="14"
+                                                Background="{DynamicResource SidebarLogoBrush}"
+                                                Visibility="{Binding ShowInitialAvatar, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="{Binding InitialText}" Foreground="White" FontWeight="Bold" FontSize="12"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </Grid>
+                                    <TextBox x:Name="Input" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
+                                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48" MaxHeight="140"
+                                         VerticalScrollBarVisibility="Auto" BorderThickness="0" Background="Transparent"
+                                         Foreground="{DynamicResource TextPrimaryBrush}">
+                                    <!-- Enterで送信。Shift+Enterは改行 -->
+                                    <TextBox.InputBindings>
+                                        <KeyBinding Key="Return" Command="{Binding SendCommand}"/>
+                                    </TextBox.InputBindings>
+                                </TextBox>
+                                </DockPanel>
+                            </Border>
+                            <Button x:Name="AttachButton" Grid.Column="1" Content="📎" Click="OnAttachFile"
+                                    Style="{StaticResource PrimaryButton}" Background="{DynamicResource PanelInsetBrush}"
+                                    Foreground="{DynamicResource TextPrimaryBrush}" Padding="14,0" Margin="8,0,0,0" MinHeight="48"
+                                    FontSize="16" ToolTip="ファイルを選んで添付します(エクスプローラーから入力欄へファイル・フォルダをドラッグ&amp;ドロップもできます)"/>
+                            <Button x:Name="MicButton" Grid.Column="2" Content="🎤" Click="OnVoiceInput"
+                                    Style="{StaticResource PrimaryButton}" Background="{DynamicResource PanelInsetBrush}"
+                                    Foreground="{DynamicResource TextPrimaryBrush}" Padding="14,0" Margin="8,0,0,0" MinHeight="48"
+                                    FontSize="16" ToolTip="音声入力(Windows標準の Win+H)を起動します"/>
+                            <Button Grid.Column="3" Content="送信" Style="{StaticResource PrimaryButton}"
+                                    Command="{Binding SendCommand}" Margin="8,0,0,0" MinHeight="48"/>
+                            <Button x:Name="StopButton" Grid.Column="4" Content="■ 停止"
+                                    Style="{StaticResource PrimaryButton}" Background="{StaticResource DangerTextBrush}"
+                                    Command="{Binding CancelCommand}"
+                                    Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}"
+                                    Margin="8,0,0,0" MinHeight="48" Padding="16,0"
+                                    ToolTip="実行中のAIの返答を停止(キャンセル)します"/>
+                        </Grid>
+                        <TextBlock Text="Enterで送信 / Shift+Enterで改行 / Ctrl+Vでスクショ添付 / ファイル・フォルダをドラッグ&amp;ドロップで添付" FontSize="11" Margin="2,6,0,0"
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- サイドバーとチャット欄の仕切り(ドラッグでサイドバーの幅を変える) -->
+            <GridSplitter x:Name="SidebarSplitter" Grid.Column="1" Width="5" HorizontalAlignment="Left"
+                          VerticalAlignment="Stretch" ResizeBehavior="PreviousAndCurrent"
+                          Style="{StaticResource PaneSplitter}"
+                          ToolTip="ドラッグで、左のメンバー欄の幅を変えます"/>
+        </Grid>
+    </Grid>
+</Window>

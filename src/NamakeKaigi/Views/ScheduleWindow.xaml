@@ -1,0 +1,176 @@
+﻿<Window x:Class="NamakeKaigi.Views.ScheduleWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="自動実行(定期実行)" Width="860" Height="620" MinWidth="680" MinHeight="460"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource MainBackgroundBrush}"
+        Foreground="{DynamicResource TextPrimaryBrush}"
+        FontFamily="Yu Gothic UI, Segoe UI, Meiryo" FontSize="13.5"
+        Icon="pack://application:,,,/NamakeKaigi;component/Assets/namake_icon.png">
+
+    <Window.Resources>
+        <Style x:Key="SecondaryBtn" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryButtonBackgroundBrush}"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource InputBorderBrush}"
+                                BorderThickness="1" CornerRadius="8" Padding="{TemplateBinding Padding}" Opacity="1" x:Name="bd">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="Muted" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="2*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 見出しと、保存ファイル -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="⏰ 自動実行(定期実行)" FontSize="17" FontWeight="Bold"/>
+            <TextBlock Style="{StaticResource Muted}" Margin="0,4,0,0"
+                       Text="時間になると、新しい会議室を開いて、決めた相手にプロンプトを送ります(いま見ている画面は切り替えません)。ナマケ会議を起動したままにして、パソコンが起きている間だけ動きます。"/>
+            <DockPanel Margin="0,6,0,0">
+                <Button DockPanel.Dock="Right" Content="読み直す" Style="{StaticResource SecondaryBtn}" Command="{Binding ReloadCommand}"
+                        Margin="8,0,0,0" ToolTip="保存ファイルを直接書き換えたときに押します"/>
+                <Button DockPanel.Dock="Right" Content="＋ 予約を追加" Style="{StaticResource SecondaryBtn}" Click="OnAdd"
+                        Margin="8,0,0,0" ToolTip="新しい予約を作ります"/>
+                <TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center">
+                    <Run Text="予約の保存ファイル:"/>
+                    <Run Text="{Binding FilePath, Mode=OneWay}"/>
+                </TextBlock>
+            </DockPanel>
+        </StackPanel>
+
+        <!-- 気づいてほしい知らせ(保存ファイルが読めないなど) -->
+        <Border Grid.Row="1" Background="#FFFDE7E7" BorderBrush="#FFD9534F" BorderThickness="1" CornerRadius="8" Padding="10,6"
+                Margin="0,0,0,10">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Visible"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding ErrorText}" Value="">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <TextBlock Text="{Binding ErrorText}" Foreground="#FF8A1F1B" TextWrapping="Wrap"/>
+        </Border>
+
+        <!-- 予約の一覧 -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Items}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="{DynamicResource SecondaryButtonBackgroundBrush}" BorderBrush="{DynamicResource InputBorderBrush}"
+                                BorderThickness="1" CornerRadius="10" Padding="12,8" Margin="0,0,0,8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Grid.Column="0" IsChecked="{Binding Enabled}" VerticalAlignment="Top" Margin="0,3,12,0"
+                                          ToolTip="ONで動きます。OFFにすると時間になっても動きません(「今すぐ実行」は使えます)"/>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                    <TextBlock Style="{StaticResource Muted}">
+                                        <Run Text="{Binding Cron, Mode=OneWay}" FontFamily="Consolas"/>
+                                        <Run Text="  ／  "/>
+                                        <Run Text="{Binding AgentText, Mode=OneWay}"/>
+                                        <Run Text="  ／  モデル: "/>
+                                        <Run Text="{Binding ModelText, Mode=OneWay}"/>
+                                    </TextBlock>
+                                    <TextBlock Style="{StaticResource Muted}">
+                                        <Run Text="次の実行:"/>
+                                        <Run Text="{Binding NextRunText, Mode=OneWay}"/>
+                                    </TextBlock>
+                                    <TextBlock Style="{StaticResource Muted}">
+                                        <Run Text="前回:"/>
+                                        <Run Text="{Binding LastResultText, Mode=OneWay}"/>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding Prompt}" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis"
+                                               TextWrapping="NoWrap" ToolTip="{Binding Prompt}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Margin="12,0,0,0">
+                                    <Button Content="今すぐ実行" Style="{StaticResource SecondaryBtn}" Command="{Binding RunNowCommand}"
+                                            ToolTip="時間を待たずに、いま1回実行します(新しい会議室が開きます)"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0" HorizontalAlignment="Right">
+                                        <Button Content="編集" Style="{StaticResource SecondaryBtn}" Click="OnEdit" Margin="0,0,6,0"/>
+                                        <Button Content="削除" Style="{StaticResource SecondaryBtn}" Click="OnDelete"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <TextBlock Grid.Row="3" Text="実行の履歴(新しい順)" FontWeight="Bold" Margin="0,6,0,6"/>
+
+        <!-- 履歴 -->
+        <ListBox Grid.Row="4" ItemsSource="{Binding History}" Background="Transparent" BorderThickness="0"
+                 Foreground="{DynamicResource TextPrimaryBrush}"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                    <Setter Property="Padding" Value="4,2"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <Border x:Name="bd" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="bd" Property="Background" Value="{DynamicResource PanelInsetBrush}"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="bd" Property="Background" Value="{DynamicResource PanelInsetBrush}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock TextWrapping="Wrap" Margin="0,2" Foreground="{DynamicResource TextPrimaryBrush}">
+                        <Run Text="{Binding StartedAt, StringFormat='M/d HH:mm', Mode=OneWay}" FontFamily="Consolas"/>
+                        <Run Text="  "/>
+                        <Run Text="{Binding ResultLabel, Mode=OneWay}" FontWeight="Bold"/>
+                        <Run Text="  "/>
+                        <Run Text="{Binding JobName, Mode=OneWay}"/>
+                        <Run Text="{Binding Note, StringFormat='  — {0}', Mode=OneWay}" Foreground="{DynamicResource TextMutedBrush}"/>
+                    </TextBlock>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Grid>
+</Window>
