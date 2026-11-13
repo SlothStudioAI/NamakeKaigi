@@ -13,6 +13,15 @@
 
 ---
 
+## 📺 機能紹介・デモ動画 (YouTube)
+
+実際の操作画面や各機能を動画でご覧いただけます。複数AIへの一斉送信や、画面分割・権限切り替え・テーマ切り替えなどのショート動画をまとめて再生できます。
+
+[![ナマケ会議 機能紹介シリーズ(YouTube)](https://img.youtube.com/vi/WdnmPSqixZI/maxresdefault.jpg)](https://www.youtube.com/playlist?list=PLa7UtH6dgDXA)  
+▶ **[【YouTube再生リスト】ナマケ会議 機能紹介シリーズ（全動画一覧）](https://www.youtube.com/playlist?list=PLa7UtH6dgDXA)**
+
+---
+
 ## 💡 ナマケ会議とは？
 
 ナマケ会議は、**Claude Code**、**Google Antigravity (Gemini)**、**OpenAI Codex (ChatGPT)** の3つの自律型AI CLIツールを同じチャットルームに集め、**まるでチームメンバーと会議するようにソフトウェア開発を進めることができる Windows デスクトップアプリ** です。
@@ -164,6 +173,6 @@ dotnet test src/NamakeKaigi.Tests
 
 - **What it is**: A Windows desktop app for **Meeting-Driven Development (MDD)** that brings Claude Code, Google Antigravity (`agy`), and OpenAI Codex CLI into a single chat room so multiple AIs can discuss, review, and collaborate.
 - **Requirements**: Windows 10/11 (64-bit). The release zip is self-contained (no .NET install needed); building from source requires the .NET 10 SDK. At least one supported AI CLI (`claude`, `agy`, or `codex`) must be installed.
-- **Quick start**: Download the zip from [Releases](https://github.com/SlothStudioAI/NamakeKaigi/releases), extract it, and run `NamakeKaigi.exe`. If Windows SmartScreen appears, click "More info" then "Run anyway".
+- **Quick start**: Download the zip from [Releases](https://github.com/SlothStudioAI/NamakeKaigi/releases), extract it, and run `NamakeKaigi.exe`. If Windows SmartScreen appears, click "More info" then "Run anyway". Watch demo videos on the [YouTube Playlist](https://www.youtube.com/playlist?list=PLa7UtH6dgDXA).
 - **Privacy & safety**: The app itself makes no external network connections; it only invokes your local AI CLIs and saves meeting logs locally under `meetings/` and user settings under `%APPDATA%\NamakeKaigi`. Each AI's permission level (**Read** / **Read-Write** / **Full**) can be switched per turn. Back up important files or use Git before granting write or command permissions.
 - **License**: [MIT](LICENSE) (see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)). Unofficial client tool, not affiliated with Anthropic, Google, or OpenAI ("AS IS").
