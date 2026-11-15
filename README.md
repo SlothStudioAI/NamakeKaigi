@@ -61,8 +61,8 @@
 | AI名 | 必要なCLIツール | インストール・準備方法 |
 | :--- | :--- | :--- |
 | **Claude** | **Claude Code** | `npm install -g @anthropic-ai/claude-code`<br>ターミナルで `claude` を実行して初期ログインを済ませてください。 |
-| **Gemini** | **Antigravity (agy)** | [Google Antigravity](https://antigravity.google) をインストールすると同梱される `agy.exe` を使用します。 |
-| **ChatGPT** | **Codex CLI** | OpenAI Codex CLI をインストールし、ターミナルでログインを済ませてください。 |
+| **Gemini** | **Antigravity CLI (agy)** | Antigravity アプリ本体とは別に CLI の導入が必要です。<br>PowerShell で `irm https://antigravity.google/cli/install.ps1 | iex` を実行し、新しいターミナルで `agy` を開いて Google ログインしてください。 |
+| **ChatGPT** | **Codex CLI** | `npm install -g @openai/codex`<br>導入後、ターミナルで `codex login` を実行してログインを済ませてください。 |
 
 ---
 
