@@ -267,7 +267,17 @@ public sealed class ClaudeAgent : IChatAgent
             // 結果の行まで届いていれば、終了コードの違いは無視して、結果の内容で判断する
         }
         _lastSentNote = status; // 届いたので、同じ状態のあいだは次から添えない
-        var reply = state.ToReply();
+        AgentReply reply;
+        try
+        {
+            reply = state.ToReply();
+        }
+        catch
+        {
+            // エラーだった場合は常駐CLIを終了し、次の発言で起動し直す(前回エラーの引きずり防止)
+            if (kept) _kept.Stop();
+            throw;
+        }
         if (kept) _kept.MarkConversation(reply.ConversationId);
         LastTurnReusedCli = kept ? !_kept.LastTurnStartedNew : null;
         return reply;

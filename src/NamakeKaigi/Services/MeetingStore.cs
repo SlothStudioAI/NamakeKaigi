@@ -20,6 +20,12 @@ public static class MeetingStore
     /// <summary>会議フォルダの中のログのファイル名。</summary>
     public const string LogFileName = "log.md";
 
+    /// <summary>会議フォルダの中の要約ファイル名。</summary>
+    public const string SummaryFileName = "summary.md";
+
+    /// <summary>古い会議を整理するアーカイブフォルダ名。</summary>
+    public const string ArchiveDirName = "_archive";
+
     private const string TimestampFormat = "yyyyMMdd_HHmmss";
 
     private static readonly UTF8Encoding Utf8 = new(false);
@@ -98,6 +104,7 @@ public static class MeetingStore
             return Array.Empty<SavedMeetingSummary>();
 
         var candidates = SafeSubDirs(meetingsDir)
+            .Where(dir => !string.Equals(Path.GetFileName(dir), ArchiveDirName, StringComparison.OrdinalIgnoreCase))
             .SelectMany(dir => IsMeetingFolder(dir) ? new[] { dir } : SafeSubDirs(dir).Where(IsMeetingFolder));
 
         var result = new List<SavedMeetingSummary>();
@@ -114,6 +121,8 @@ public static class MeetingStore
             // 例: 20261031_173243/名簿づくり(古い形式は 20261025_013000)
             var folderName = Path.GetRelativePath(meetingsDir, dir).Replace('\\', '/');
             var hasConvId = state.ConversationIds.Values.Any(v => !string.IsNullOrWhiteSpace(v));
+            var isScheduled = IsScheduledMeeting(dir, state);
+            var hasSummary = File.Exists(Path.Combine(dir, SummaryFileName));
             result.Add(new SavedMeetingSummary(
                 folderName,
                 dir,
@@ -121,10 +130,52 @@ public static class MeetingStore
                 state.StartedAt,
                 oneLine,
                 state.Entries.Count,
-                hasConvId));
+                hasConvId,
+                isScheduled,
+                hasSummary));
         }
 
         return result.OrderByDescending(m => m.StartedAt).ThenByDescending(m => m.FolderName).ToList();
+    }
+
+    /// <summary>その会議が自動実行(スケジュール)によるものかを判定する。</summary>
+    /// <param name="folderPath">会議フォルダのパス</param>
+    /// <param name="state">読み込んだ会議状態</param>
+    /// <returns>自動実行ならtrue</returns>
+    public static bool IsScheduledMeeting(string folderPath, MeetingState state)
+    {
+        if (state.IsScheduled) return true;
+        var leaf = Path.GetFileName(folderPath.TrimEnd('/', '\\'));
+        if (leaf.StartsWith("自動 ", StringComparison.Ordinal)) return true;
+        var first = state.Entries.FirstOrDefault()?.Text ?? "";
+        return first.StartsWith("⏰ 予約「", StringComparison.Ordinal);
+    }
+
+    /// <summary>会議フォルダの summary.md を読み取る(なければnull)。</summary>
+    /// <param name="folderPath">会議フォルダのパス</param>
+    public static string? ReadSummary(string folderPath)
+    {
+        var path = Path.Combine(folderPath, SummaryFileName);
+        if (!File.Exists(path)) return null;
+        try
+        {
+            var text = File.ReadAllText(path, Utf8).Trim();
+            return text.Length > 0 ? text : null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>会議フォルダに summary.md を保存する。</summary>
+    /// <param name="folderPath">会議フォルダのパス</param>
+    /// <param name="summary">保存する要約テキスト</param>
+    public static void SaveSummary(string folderPath, string summary)
+    {
+        if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath)) return;
+        var path = Path.Combine(folderPath, SummaryFileName);
+        File.WriteAllText(path, summary.Trim() + "\n", Utf8);
     }
 
     /// <summary>会議フォルダの開始時刻。フォルダ名が日時ならそれ、そうでなければ1つ上(起動した時刻)のフォルダ名。どちらでもなければ現在時刻。</summary>

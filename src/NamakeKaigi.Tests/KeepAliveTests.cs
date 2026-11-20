@@ -200,6 +200,55 @@ public class KeepAliveTests
     }
 
     [Fact]
+    public async Task ジェミリーがエラーを返したら_起動したままのCLIを終わらせて_次は起動し直す()
+    {
+        var turn = 0;
+        var runner = new SessionRunner(_ =>
+        {
+            turn++;
+            return turn == 1
+                ? new[] { JsonSerializer.Serialize(new { @event = "result", result = new { conversation_id = "c1", status = "ERROR", error = "Malformed function call" } }) }
+                : new[] { AgyResult("直りました", "c1") };
+        });
+        var agent = new AgyAgent(new AgySettings("agy", new[] { "--mode", "plan" }, "[読むだけ]"), runner, "w", Timeout);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            agent.AskAsync("1回目", null, null, CancellationToken.None));
+        Assert.Contains("Malformed function call", ex.Message);
+        Assert.True(runner.Started[0].Disposed);
+        Assert.False(agent.Kept.IsRunning);
+
+        var reply = await agent.AskAsync("2回目", "c1", null, CancellationToken.None);
+        Assert.Equal("直りました", reply.Text);
+        Assert.Equal(2, runner.Started.Count);
+    }
+
+    [Fact]
+    public async Task クローディがエラーを返したら_起動したままのCLIを終わらせて_次は起動し直す()
+    {
+        var turn = 0;
+        var runner = new SessionRunner(_ =>
+        {
+            turn++;
+            return turn == 1
+                ? new[] { JsonSerializer.Serialize(new { type = "result", subtype = "error", is_error = true, result = "API Error", session_id = "s1" }) }
+                : new[] { ClaudeResult("直りました", "s1") };
+        });
+        var agent = Claude(runner);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            agent.AskAsync("1回目", null, null, CancellationToken.None));
+        Assert.Contains("API Error", ex.Message);
+        Assert.True(runner.Started[0].Disposed);
+        Assert.False(agent.Kept.IsRunning);
+
+        var reply = await agent.AskAsync("2回目", "s1", null, CancellationToken.None);
+        Assert.Equal("直りました", reply.Text);
+        Assert.Equal(2, runner.Started.Count);
+        Assert.Contains("--resume", runner.Started[1].Args);
+    }
+
+    [Fact]
     public async Task 会議を閉じると_起動したままのCLIを終わらせる()
     {
         var runner = new SessionRunner(_ => new[] { ClaudeResult("はい") });

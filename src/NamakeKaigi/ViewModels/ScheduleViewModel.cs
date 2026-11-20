@@ -33,6 +33,7 @@ public sealed class ScheduleItemViewModel : ViewModelBase
             _job = value;
             Raise(nameof(Job));
             Raise(nameof(Name));
+            Raise(nameof(AgentText));
             Raise(nameof(Enabled));
             Raise(nameof(ModelText));
         }
@@ -44,14 +45,14 @@ public sealed class ScheduleItemViewModel : ViewModelBase
     /// <summary>実行する時刻のcron式。</summary>
     public string Cron => _job.Cron;
 
-    /// <summary>相手と段階の表示(例: ジェミリー・何でもできる)。</summary>
+    /// <summary>相手と段階の表示(例: ジェミリー・何でもできる / 簡易表示時は Gemini・何でもできる)。</summary>
     public string AgentText
     {
         get
         {
-            var participant = Participants.All.FirstOrDefault(p => p.Id == _job.Agent);
+            var agentName = _owner.ResolveAgentName(_job.Agent);
             var level = PermissionLevelOption.For(canFull: true).FirstOrDefault(o => o.Id == _job.Level)?.Label ?? _job.Level;
-            return $"{participant?.DisplayName ?? _job.Agent}・{level}";
+            return $"{agentName}・{level}";
         }
     }
 
@@ -225,13 +226,23 @@ public sealed class ScheduleViewModel : ViewModelBase
     /// <param name="jobId">消す予約の識別名</param>
     public void Delete(string jobId) => Persist(_file.Jobs.Where(j => j.Id != jobId).ToList());
 
-    /// <summary>追加・編集の窓の状態を作る。選べるモデルは、いま見ている会議室のAIの一覧を使う。</summary>
+    /// <summary>現在の表示設定(簡易表示モード・名前変更)に合わせてAIの表示名を返す。</summary>
+    /// <param name="agentId">AIの識別名</param>
+    /// <returns>画面に表示する名前</returns>
+    internal string ResolveAgentName(string agentId)
+    {
+        if (!Participants.All.Any(p => p.Id == agentId)) return agentId;
+        return _rooms.Current.Appearance.ResolveParticipantName(agentId);
+    }
+
+    /// <summary>追加・編集の窓の状態を作る。選べるモデルと表示名は、いま見ている会議室の設定を使う。</summary>
     /// <param name="job">編集する予約(新しく足すならnull)</param>
     /// <returns>編集の状態</returns>
     public ScheduleEditViewModel CreateEditor(ScheduledJob? job) =>
         new(job, _clock, agentId =>
             _rooms.Current.Members.FirstOrDefault(m => m.Participant.Id == agentId)?.ModelOptions.ToList()
-            ?? new List<ModelOption>());
+            ?? new List<ModelOption>(),
+            ResolveAgentName);
 
     /// <summary>予約の一覧を保存して、時計役と画面の一覧に反映する(保存に失敗したら、画面の一覧は変えず、知らせる)。</summary>
     /// <param name="jobs">新しい予約の一覧</param>

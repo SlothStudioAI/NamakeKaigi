@@ -254,4 +254,16 @@ public class ScheduleViewModelTests : IDisposable
         var (vm, _) = Create(3, _ => Reply("ok"), Job("bad", cron: "毎日"));
         Assert.StartsWith("⚠", vm.Items.Single().NextRunText);
     }
+
+    [Fact]
+    public void 簡易表示モードでは_予約一覧と編集画面の相手表示名もビジネス名になる()
+    {
+        var (vm, rooms) = Create(3, _ => Reply("ok"), Job("g") with { Agent = Participants.GeminiId });
+        rooms.Current.IsBusinessMode = true;
+
+        Assert.StartsWith("Gemini・", vm.Items.Single().AgentText);
+
+        var editor = vm.CreateEditor(null);
+        Assert.Equal(new[] { "Claude", "Gemini", "ChatGPT" }, editor.AgentOptions.Select(o => o.Label));
+    }
 }

@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <!-- アプリのバージョン(正本はここ1か所。画面のタイトルバー・配布zipの名前・exeのプロパティに使う) -->
-    <Version>0.9.0</Version>
+    <Version>1.0.0</Version>
     <!-- 版にビルド時のコミットID(+以降)を付けない -->
     <IncludeSourceRevisionInId>false</IncludeSourceRevisionInId>
     <!-- exe・タスクバーのアイコン(16〜256pxを含む) -->

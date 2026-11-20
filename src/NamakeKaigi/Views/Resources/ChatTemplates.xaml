@@ -129,6 +129,10 @@
                 <Setter TargetName="body" Property="Foreground" Value="{StaticResource DangerTextBrush}"/>
                 <Setter TargetName="bubble" Property="BorderBrush" Value="{StaticResource DangerTextBrush}"/>
             </DataTrigger>
+            <!-- 簡易表示モード: チャット欄の丸アイコンも隠して、吹き出しを広く使う -->
+            <DataTrigger Binding="{Binding IsBusinessMode}" Value="True">
+                <Setter TargetName="avatar" Property="Visibility" Value="Collapsed"/>
+            </DataTrigger>
         </DataTemplate.Triggers>
     </DataTemplate>
 

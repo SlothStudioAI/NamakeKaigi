@@ -62,6 +62,9 @@ public static class LinkDetector
     // URLの終わりにくっついた句読点(文の区切り)
     private static readonly char[] UrlTrailingChars = ['.', ',', ';', ':', '!', '?', '\'', '"'];
 
+    // 末尾の行番号アンカー(#L10 / #L10-L20)
+    private static readonly Regex LineAnchorSuffix = new(@"#L\d+(?:-L?\d+)?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     /// <summary>本文の中のリンクを、出てくる順に返す。パスは、実在するものだけ。</summary>
     /// <param name="text">本文</param>
     /// <returns>見つけたリンク(重ならない)</returns>
@@ -88,16 +91,28 @@ public static class LinkDetector
     }
 
     /// <summary>1つの文字列(コードの中身・Markdownのリンク先)が、開けるリンクかを調べ、開く先を返す。</summary>
-    /// <param name="text">URL またはパス(前後の空白・引用符は無視する)</param>
+    /// <param name="text">URL またはパス(前後の空白・引用符は無視し、file:/// や #L10-L20 もローカルパスへ正規化する)</param>
     /// <returns>開く先。開けないものはnull</returns>
     public static string? ResolveTarget(string text)
     {
         var target = (text ?? "").Trim().Trim('"', '\'', '<', '>').Trim();
         if (target.Length == 0) return null;
-        return Classify(target) == LinkKind.None ? null : target;
+        if (target.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            target.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return Classify(target) == LinkKind.None ? null : target;
+        }
+
+        var local = NormalizeLocalTarget(target);
+        if (local is null) return null;
+        if (ClassifyPath(local) != LinkKind.None) return local;
+
+        var stripped = LineAnchorSuffix.Replace(local, "");
+        if (stripped.Length != local.Length && ClassifyPath(stripped) != LinkKind.None) return stripped;
+        return null;
     }
 
-    /// <summary>開く先の種類を調べる。http(s)のURL・実在するフォルダ・実在するファイルだけがリンクになる。</summary>
+    /// <summary>開く先の種類を調べる。http(s)のURL・実在するフォルダ・実在するファイル(file:/// や #L10-L20 付きを含む)だけがリンクになる。</summary>
     /// <param name="target">URL またはフルパス</param>
     /// <returns>種類(それ以外は None)</returns>
     public static LinkKind Classify(string target)
@@ -109,7 +124,21 @@ public static class LinkDetector
             return Uri.TryCreate(target, UriKind.Absolute, out _) ? LinkKind.Web : LinkKind.None;
         }
 
-        return ClassifyPath(target);
+        var local = NormalizeLocalTarget(target);
+        if (local is null) return LinkKind.None;
+        var kind = ClassifyPath(local);
+        if (kind != LinkKind.None) return kind;
+
+        var stripped = LineAnchorSuffix.Replace(local, "");
+        return stripped.Length != local.Length ? ClassifyPath(stripped) : LinkKind.None;
+    }
+
+    private static string? NormalizeLocalTarget(string target)
+    {
+        var t = target.Trim();
+        if (!t.StartsWith("file://", StringComparison.OrdinalIgnoreCase)) return t;
+        if (!Uri.TryCreate(t, UriKind.Absolute, out var uri) || !uri.IsFile || uri.IsUnc) return null;
+        return uri.LocalPath;
     }
 
     /// <summary>パスの実在とファイルの種類を調べる(ディスクに問い合わせる。止まりうるドライブへの対策は <see cref="ClassifyPath"/>)。</summary>

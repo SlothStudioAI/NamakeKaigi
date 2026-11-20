@@ -180,4 +180,46 @@ public class MeetingRoomsTests
         Assert.True(File.Exists(b.Path));
         Assert.EndsWith(Path.Combine("会議室1 (2)", "log.md"), b.Path);
     }
+
+    [Fact]
+    public void Moveでタブの並び順を入れ替えても_現在の選択状態は維持される()
+    {
+        var (rooms, _) = Create(3);
+        rooms.AddRoom();
+        rooms.AddRoom();
+        var current = rooms.Current; // 会議室3
+
+        rooms.Move(rooms.Items[2], rooms.Items[0]);
+
+        Assert.Equal(new[] { "会議室3", "会議室1", "会議室2" }, rooms.Items.Select(r => r.RoomTitle));
+        Assert.Same(current, rooms.Current);
+        Assert.True(rooms.Items[0].IsCurrentRoom);
+    }
+
+    [Fact]
+    public async Task 裏のタブでAIが返答を終えると未読バッジが点き_開くと消える()
+    {
+        var (rooms, sessions) = Create(2);
+        var room1 = rooms.Items[0];
+        rooms.AddRoom(); // room2 が現在タブになる
+        var room2 = rooms.Items[1];
+
+        room1.TargetClaude = true;
+        room1.InputText = "裏で進めて";
+        var sending = room1.SendAsync();
+        Assert.True(room1.IsBusy);
+        Assert.False(room1.HasUnreadBadge); // 考え中は●を優先
+
+        sessions[0].Finish(new ChatProgress(Participants.ClaudeId, ChatProgressKind.Done, "完了しました"));
+        await sending;
+
+        Assert.False(room1.IsBusy);
+        Assert.True(room1.HasUnreadReply);
+        Assert.True(room1.HasUnreadBadge);
+        Assert.False(room2.HasUnreadBadge);
+
+        rooms.Select(room1); // 開くと消える
+        Assert.False(room1.HasUnreadReply);
+        Assert.False(room1.HasUnreadBadge);
+    }
 }

@@ -34,6 +34,7 @@ public sealed partial class MainViewModel
     /// <param name="fromInput">入力欄からの送信ならtrue(送ったあと、入力欄と添付を空にする)</param>
     private async Task SendCoreFromAsync(string text, List<AttachmentItem> attached, bool fromInput)
     {
+        if (!HasWorkDir) return;
         if (text.Length == 0 && attached.Count == 0) return;
 
         // 先頭の呼びかけ(「ジェミ、〜」)で、送る直前に宛先を切り替える。AIに渡す本文からは呼びかけを除く(画面と記録には、言った言葉のまま残す)
@@ -70,6 +71,7 @@ public sealed partial class MainViewModel
     /// <param name="targetId">意見を聞く相手の識別名</param>
     public async Task AskOpinionAsync(MessageViewModel message, string targetId)
     {
+        if (!HasWorkDir) return;
         if (message is null || !message.CanAsk) return;
         var target = message.AskTargets.FirstOrDefault(t => t.Id == targetId);
         if (target is null || !IsPresent(targetId)) return;
@@ -110,6 +112,7 @@ public sealed partial class MainViewModel
             if (session != _session) return; // 会議が新しくなったら、古い会議の知らせは捨てる
             OnProgress(progress);
         }, extraDirs);
+        if (session == _session) RefreshContextMetrics();
     }
 
     /// <summary>送った瞬間に、考え中の仮の吹き出しを出す(最初の文字が届くまで、チャット欄が止まって見えないように)。</summary>
@@ -173,6 +176,7 @@ public sealed partial class MainViewModel
                 asking.Approval = progress.Approval;
                 asking.StatusLine = ToStatusLine(ApprovalWaitingText);
                 member.ActivityText = ApprovalWaitingText;
+                if (!IsCurrentRoom) HasUnreadReply = true;
                 break;
 
             case ChatProgressKind.Delta:
@@ -234,12 +238,15 @@ public sealed partial class MainViewModel
         member.IsAnswering = false;
         member.ActivityText = "";
         NotifyBusyStateChanged();
+        if (!IsBusy && !IsCurrentRoom) HasUnreadReply = true;
     }
 
     private void NotifyBusyStateChanged()
     {
         Raise(nameof(IsBusy));
+        Raise(nameof(HasUnreadBadge));
         ((RelayCommand)CancelCommand).RaiseCanExecuteChanged();
+        ((RelayCommand)SummarizeAndNewMeetingCommand).RaiseCanExecuteChanged();
     }
 
     /// <summary>吹き出しを、載るべき一覧に入れる(見た目の反映と、参加状況の反映もここで行う)。</summary>

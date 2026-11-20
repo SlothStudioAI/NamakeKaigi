@@ -34,6 +34,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Text="配色テーマ" VerticalAlignment="Center" Margin="0,6"/>
@@ -54,8 +55,8 @@
             <CheckBox Grid.Row="2" Grid.Column="1" Margin="0,6" VerticalAlignment="Center"
                       IsChecked="{Binding IsBusinessMode}"
                       Foreground="{DynamicResource SidebarTextBrush}"
-                      ToolTip="クローディ・ジェミリーなどのイラストを、頭文字の丸(U / C / G)に変えます。画面共有のときなどに">
-                <TextBlock Text="💼 イラストの代わりに頭文字を出す" FontSize="12"/>
+                      ToolTip="キャラ絵を隠し、チャット欄の丸アイコンも消して画面を広く使います。画面共有のときなどに">
+                <TextBlock Text="💼 イラストを隠してシンプル表示にする" FontSize="12"/>
             </CheckBox>
 
             <!-- 読み上げの機能を使わない設定(voice.enabled が false。既定)なら、この行を出さない -->
@@ -80,6 +81,32 @@
                     Style="{StaticResource SidebarLinkButton}" HorizontalAlignment="Left" VerticalAlignment="Center"
                     Margin="0,6" FontSize="12"
                     ToolTip="作業フォルダ・会議ログの保存先・予約ファイル・各AIのCLIの場所を設定します(次の起動から効きます)"/>
+
+            <TextBlock Grid.Row="6" Text="会議の要約" VerticalAlignment="Top" Margin="0,8,0,6"/>
+            <StackPanel Grid.Row="6" Grid.Column="1" Margin="0,6">
+                <CheckBox IsChecked="{Binding SummaryEnabled}"
+                          Foreground="{DynamicResource SidebarTextBrush}"
+                          ToolTip="長い会議の要約引き継ぎや summary.md の自動作成を有効にします">
+                    <TextBlock Text="要約による引き継ぎ・自動記録を使う" FontSize="12"/>
+                </CheckBox>
+                <Grid Margin="0,6,0,0" IsEnabled="{Binding SummaryEnabled}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <ComboBox Grid.Column="0" FontSize="11.5"
+                              Style="{StaticResource SidebarComboBox}"
+                              ItemsSource="{Binding SummaryAgentOptions}" DisplayMemberPath="Label"
+                              SelectedValuePath="Id" SelectedValue="{Binding SelectedSummaryAgentId}"
+                              ToolTip="要約を作成するAIを選びます（自動＝インストール済みの軽量モデルを優先）"/>
+                    <ComboBox Grid.Column="1" FontSize="11.5" Margin="6,0,0,0"
+                              Style="{StaticResource SidebarComboBox}"
+                              ItemsSource="{Binding SummaryModelOptions}" DisplayMemberPath="Label"
+                              SelectedValuePath="Id" SelectedValue="{Binding SelectedSummaryModelId}"
+                              IsEnabled="{Binding CanChooseSummaryModel}"
+                              ToolTip="要約に使うモデルを選びます（自動＝最軽量モデル）"/>
+                </Grid>
+            </StackPanel>
         </Grid>
 
         <Button Content="閉じる" Click="OnClose" HorizontalAlignment="Right" Margin="0,16,0,0" Padding="18,5" IsDefault="True" IsCancel="True"/>

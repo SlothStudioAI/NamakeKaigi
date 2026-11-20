@@ -72,15 +72,19 @@ public sealed class AgyStreamState
         }
     }
 
-    /// <summary>ためた状態から、完成した返答を作る。結果が届いていない・エラー・空なら例外にする。</summary>
+    /// <summary>ためた状態から、完成した返答を作る。結果が届いていない・返答が空(またはエラーで空)なら例外にする。</summary>
     /// <returns>返答</returns>
     public AgentReply ToReply()
     {
         if (!HasResult) throw new InvalidOperationException("Geminiから返答が届きませんでした。");
-        if (Status == "ERROR" || Error.Length > 0)
-            throw new InvalidOperationException($"Geminiがエラーを返しました: {Error}");
+        // agyは会話履歴に過去1回でもERROR_MESSAGEがあると、以降の正常完了ターンでも status="ERROR" / error="(過去のエラー)" を返し続けるため、
+        // 今回の返答本文(Response)が届いていれば正常返答として扱い、Responseが空のときだけエラーを投げる
         if (string.IsNullOrWhiteSpace(Response))
+        {
+            if (Status == "ERROR" || Error.Length > 0)
+                throw new InvalidOperationException($"Geminiがエラーを返しました: {Error}");
             throw new InvalidOperationException("Geminiの返答が空でした(ツールの権限が拒否された可能性があります)。");
+        }
         var cleaned = ReplyTextCleaner.StripLeadingRoleHeader(Response);
         return new AgentReply(cleaned, ConversationId);
     }
@@ -272,7 +276,17 @@ public sealed class AgyAgent : IChatAgent
         {
             // 結果の行まで届いていれば、終了コードの違いは無視して、結果の内容で判断する
         }
-        var reply = state.ToReply();
+        AgentReply reply;
+        try
+        {
+            reply = state.ToReply();
+        }
+        catch
+        {
+            // エラーや空返答だった場合は常駐CLIを終了し、次の発言で起動し直す(前回エラーの引きずり防止)
+            if (kept) _kept.Stop();
+            throw;
+        }
         if (kept) _kept.MarkConversation(reply.ConversationId);
         LastTurnReusedCli = kept ? !_kept.LastTurnStartedNew : null;
         return reply;

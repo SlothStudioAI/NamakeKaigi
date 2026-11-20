@@ -166,4 +166,146 @@ public class ScheduleRunnerTests
             Assert.DoesNotContain(((char)92).ToString(), job.Prompt); // パスは / で書く(JSONで円記号が消える事故を防ぐ)
         }
     }
+
+    /// <summary>深夜跨ぎ・月末・年越し・閏日跨ぎの各境界でCheckがDueを返すことを確認する。</summary>
+    [Theory]
+    [InlineData("2026-11-13 23:59:00", "2026-11-14 00:02:00", "2026-11-14 00:00:00")] // 深夜跨ぎ
+    [InlineData("2026-11-30 23:55:00", "2026-12-01 00:01:00", "2026-12-01 00:00:00")] // 月末跨ぎ
+    [InlineData("2026-12-31 23:58:00", "2027-01-01 00:03:00", "2027-01-01 00:00:00")] // 年越し
+    [InlineData("2028-02-28 23:55:00", "2028-02-29 00:02:00", "2028-02-29 00:00:00")] // 閏日跨ぎ
+    public void Check_深夜跨ぎと月末と年越しと閏日跨ぎでDueが発火する(string start, string now, string expectedScheduled)
+    {
+        var runner = Runner(start, 5, Job("midnight", "0 0 * * *"));
+        var tick = runner.Check(DateTime.Parse(now));
+
+        Assert.Single(tick.Due);
+        Assert.Empty(tick.Missed);
+        Assert.Equal(DateTime.Parse(expectedScheduled), tick.Due[0].ScheduledAt);
+    }
+
+    /// <summary>graceMinutesのちょうど境界はDue、1秒超過はMissedになること(0分・負数含む)を確認する。</summary>
+    [Theory]
+    [InlineData(5, "2026-11-05 04:05:00", true)]
+    [InlineData(5, "2026-11-05 04:05:01", false)]
+    [InlineData(0, "2026-11-05 04:00:00", true)]
+    [InlineData(0, "2026-11-05 04:00:01", false)]
+    [InlineData(-10, "2026-11-05 04:00:00", true)]
+    [InlineData(-10, "2026-11-05 04:00:01", false)]
+    public void Check_graceMinutesの境界でぴったりはDueで1秒超過はMissedになる(int graceMinutes, string now, bool expectDue)
+    {
+        var runner = Runner("2026-11-05 03:50:00", graceMinutes, Job("a", "0 4 * * *"));
+        var tick = runner.Check(DateTime.Parse(now));
+
+        if (expectDue)
+        {
+            Assert.Single(tick.Due);
+            Assert.Empty(tick.Missed);
+            Assert.Equal(DateTime.Parse("2026-11-05 04:00:00"), tick.Due[0].ScheduledAt);
+        }
+        else
+        {
+            Assert.Empty(tick.Due);
+            Assert.Single(tick.Missed);
+            Assert.Equal(DateTime.Parse("2026-11-05 04:00:00"), tick.Missed[0].ScheduledAt);
+        }
+    }
+
+    /// <summary>前回と同じ時刻や過去の時刻を渡しても空を返し、基準時刻が巻き戻らず二重発火しないことを確認する。</summary>
+    [Fact]
+    public void Check_同じ時刻や過去の時刻を渡しても空を返し基準時刻は巻き戻らない()
+    {
+        var runner = Runner("2026-11-05 03:59:00", 5, Job("a", "0 4 * * *"));
+
+        var first = runner.Check(DateTime.Parse("2026-11-05 04:01:00"));
+        Assert.Single(first.Due);
+
+        var same = runner.Check(DateTime.Parse("2026-11-05 04:01:00"));
+        Assert.Empty(same.Due);
+        Assert.Empty(same.Missed);
+
+        var rewind = runner.Check(DateTime.Parse("2026-11-05 03:58:00"));
+        Assert.Empty(rewind.Due);
+        Assert.Empty(rewind.Missed);
+
+        var afterRewind = runner.Check(DateTime.Parse("2026-11-05 04:02:00"));
+        Assert.Empty(afterRewind.Due);
+        Assert.Empty(afterRewind.Missed);
+    }
+
+    /// <summary>startちょうどの予定は発火せず、1秒前なら発火することを確認する。</summary>
+    [Fact]
+    public void Check_startちょうどの予定は発火せず1秒前なら発火する()
+    {
+        var exactStart = Runner("2026-11-05 00:00:00", 5, Job("a", "0 0 * * *"));
+        var exactTick = exactStart.Check(DateTime.Parse("2026-11-05 00:01:00"));
+        Assert.Empty(exactTick.Due);
+        Assert.Empty(exactTick.Missed);
+
+        var oneSecBefore = Runner("2026-11-04 23:59:59", 5, Job("a", "0 0 * * *"));
+        var beforeTick = oneSecBefore.Check(DateTime.Parse("2026-11-05 00:01:00"));
+        Assert.Single(beforeTick.Due);
+        Assert.Empty(beforeTick.Missed);
+        Assert.Equal(DateTime.Parse("2026-11-05 00:00:00"), beforeTick.Due[0].ScheduledAt);
+    }
+
+    /// <summary>長時間スリープ明けの1回のCheckで、許容内のDueと許容外のMissedが正しく振り分けられることを確認する。</summary>
+    [Fact]
+    public void Check_スリープ明けにDueとMissedが同じ回の結果に振り分けられる()
+    {
+        var runner = Runner("2026-11-05 00:00:00", 5,
+            Job("early", "0 1 * * *"),
+            Job("recent", "0 4 * * *"));
+
+        var tick = runner.Check(DateTime.Parse("2026-11-05 04:03:00"));
+
+        Assert.Single(tick.Due);
+        Assert.Equal("recent", tick.Due[0].Job.Id);
+        Assert.Equal(DateTime.Parse("2026-11-05 04:00:00"), tick.Due[0].ScheduledAt);
+
+        Assert.Single(tick.Missed);
+        Assert.Equal("early", tick.Missed[0].Job.Id);
+        Assert.Equal(DateTime.Parse("2026-11-05 01:00:00"), tick.Missed[0].ScheduledAt);
+    }
+
+    /// <summary>稼働中のSetJobsで古いエラーが消え、最後の確認時刻を維持したまま新しい予約と猶予時間が使われることを確認する。</summary>
+    [Fact]
+    public void SetJobs_稼働中の更新で古いエラーが消え基準時刻を維持したまま新しい予約と猶予時間が反映される()
+    {
+        var runner = Runner("2026-11-05 00:00:00", 10, Job("bad", "invalid cron"));
+        Assert.NotEmpty(runner.CronError("bad"));
+
+        // _lastCheck を 03:55:00 に進める
+        var beforeUpdate = runner.Check(DateTime.Parse("2026-11-05 03:55:00"));
+        Assert.Empty(beforeUpdate.Due);
+
+        var pastNewJob = Job("past", "30 3 * * *");
+        var futureNewJob = Job("future", "0 4 * * *");
+        runner.SetJobs(new[] { pastNewJob, futureNewJob }, graceMinutes: 2);
+
+        // 古いエラーは消え、一覧が更新される
+        Assert.Equal("", runner.CronError("bad"));
+        Assert.Equal(new[] { "past", "future" }, runner.Jobs.Select(j => j.Id));
+
+        // _lastCheck (03:55:00) は維持されているため、03:30の予定は発火しない
+        var afterUpdate = runner.Check(DateTime.Parse("2026-11-05 03:56:00"));
+        Assert.Empty(afterUpdate.Due);
+        Assert.Empty(afterUpdate.Missed);
+
+        // 新しい graceMinutes = 2 が適用され、04:00に対して04:03はMissedになる
+        var tick = runner.Check(DateTime.Parse("2026-11-05 04:03:00"));
+        Assert.Empty(tick.Due);
+        Assert.Single(tick.Missed);
+        Assert.Equal("future", tick.Missed[0].Job.Id);
+    }
+
+    /// <summary>登録されていない予約IDに対してCronErrorは空文字を返し、NextRunはnullを返すことを確認する。</summary>
+    [Fact]
+    public void CronErrorとNextRun_未登録の予約IDには空文字とnullを返す()
+    {
+        var runner = Runner("2026-11-05 00:00:00", 5, Job("registered", "0 4 * * *"));
+        var unknown = Job("unknown", "0 4 * * *");
+
+        Assert.Equal("", runner.CronError("unknown"));
+        Assert.Null(runner.NextRun(unknown, DateTime.Parse("2026-11-05 00:00:00")));
+    }
 }

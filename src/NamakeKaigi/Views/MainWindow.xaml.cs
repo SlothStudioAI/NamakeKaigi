@@ -41,11 +41,14 @@ public partial class MainWindow : Window
         Input.PreviewKeyDown += OnInputPreviewKeyDown;
         foreach (var scroller in Scrollers)
         {
+            _pinnedToBottom[scroller] = true;
             scroller.ScrollChanged += StickToBottom;
+            scroller.PreviewMouseWheel += OnScrollerPreviewMouseWheel;
+            scroller.PreviewKeyDown += OnScrollerPreviewKeyDown;
             // 切り替えて見える状態になったときも、一番下から始める
             scroller.IsVisibleChanged += (s, _) =>
             {
-                if (((ScrollViewer)s).IsVisible) ((ScrollViewer)s).ScrollToEnd();
+                if (s is ScrollViewer sv && sv.IsVisible) PinToBottom(sv);
             };
         }
         DataContextChanged += (_, e) =>
@@ -63,7 +66,7 @@ public partial class MainWindow : Window
             // 切り替えた部屋も、一番下から見せる
             Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
             {
-                foreach (var scroller in Scrollers) scroller.ScrollToEnd();
+                foreach (var scroller in Scrollers) PinToBottom(scroller);
             }));
         };
     }
@@ -207,11 +210,74 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainViewModel vm) return;
         var meetings = vm.ListPastMeetings();
-        var dlg = new PastMeetingsWindow(meetings, selected => vm.OpenPastMeeting(selected.FolderPath))
+        var dlg = new PastMeetingsWindow(
+            meetings,
+            selected => vm.OpenPastMeeting(selected.FolderPath),
+            selected => vm.OpenPastMeetingWithSummaryAsync(selected),
+            canSummarize: vm.SummaryEnabled)
         {
             Owner = this,
         };
         dlg.ShowDialog();
+    }
+
+    private Point _tabDragStart;
+    private MainViewModel? _draggedRoom;
+
+    /// <summary>タブを押し始めた位置と部屋を覚える(名前変更中や✕ボタン上ではドラッグを始めない)。</summary>
+    private void OnRoomTabPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _draggedRoom = null;
+        if (sender is not FrameworkElement { DataContext: MainViewModel room } || room.IsRenamingRoom) return;
+        if (e.OriginalSource is DependencyObject d && FindAncestorButtonCommand(d) == room.CloseRoomCommand) return;
+        _tabDragStart = e.GetPosition(this);
+        _draggedRoom = room;
+    }
+
+    /// <summary>一定距離以上ドラッグされたら、タブの並び替えドラッグを開始する。</summary>
+    private void OnRoomTabPreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || _draggedRoom is null) return;
+        var pos = e.GetPosition(this);
+        if (Math.Abs(pos.X - _tabDragStart.X) < SystemParameters.MinimumHorizontalDragDistance
+            && Math.Abs(pos.Y - _tabDragStart.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+        var room = _draggedRoom;
+        _draggedRoom = null;
+        DragDrop.DoDragDrop((DependencyObject)sender, new DataObject(typeof(MainViewModel), room), DragDropEffects.Move);
+    }
+
+    /// <summary>タブのドラッグ受け入れ判定。</summary>
+    private void OnRoomTabDragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(typeof(MainViewModel)))
+        {
+            e.Effects = DragDropEffects.Move;
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>別のタブ上にドロップされたら、タブの並び順を入れ替える。</summary>
+    private void OnRoomTabDrop(object sender, DragEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: MainViewModel target }) return;
+        if (!e.Data.GetDataPresent(typeof(MainViewModel))) return;
+        if (e.Data.GetData(typeof(MainViewModel)) is not MainViewModel source) return;
+        (DataContext as MainViewModel)?.Rooms?.Move(source, target);
+        e.Handled = true;
+    }
+
+    /// <summary>クリック元から親へたどって、ボタンの Command を取得する(✕ボタン判定用)。</summary>
+    private static ICommand? FindAncestorButtonCommand(DependencyObject? current)
+    {
+        while (current is not null)
+        {
+            if (current is System.Windows.Controls.Button btn) return btn.Command;
+            current = System.Windows.Media.VisualTreeHelper.GetParent(current);
+        }
+        return null;
     }
 
     /// <summary>会議室のタブがダブルクリックされたとき。その場で、名前を書き換えられるようにする。</summary>
@@ -489,7 +555,27 @@ public partial class MainWindow : Window
     // 発言のリスト(まとめて見る・各AIの列)のスクロール部分
     private readonly ScrollViewer[] _scrollers;
 
+    // 各スクロール欄が「いま一番下に追従する状態か」を覚える(上へ動かしたらOFF、下端まで戻したらON)
+    private readonly Dictionary<ScrollViewer, bool> _pinnedToBottom = new();
+
     private IEnumerable<ScrollViewer> Scrollers => _scrollers;
+
+    private void PinToBottom(ScrollViewer scroller)
+    {
+        _pinnedToBottom[scroller] = true;
+        scroller.ScrollToEnd();
+    }
+
+    private void OnScrollerPreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (e.Delta > 0 && sender is ScrollViewer scroller) _pinnedToBottom[scroller] = false;
+    }
+
+    private void OnScrollerPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.PageUp or Key.Home or Key.Up && sender is ScrollViewer scroller)
+            _pinnedToBottom[scroller] = false;
+    }
 
     /// <summary>発言のリスト(ItemsControl)のテンプレートの中から、スクロール部分を取り出す。</summary>
     /// <param name="list">発言のリスト</param>
@@ -501,12 +587,58 @@ public partial class MainWindow : Window
     }
 
     /// <summary>一番下を見ていたなら、文字が増えても(返答が流れてきても)、一番下に付いていく。</summary>
-    private static void StickToBottom(object sender, ScrollChangedEventArgs e)
+    private void StickToBottom(object sender, ScrollChangedEventArgs e)
     {
-        if (e.ExtentHeightChange <= 0) return;
-        var previousBottom = e.VerticalOffset - e.VerticalChange + e.ViewportHeight;
-        var previousExtent = e.ExtentHeight - e.ExtentHeightChange;
-        if (previousBottom >= previousExtent - BottomTolerance) ((ScrollViewer)sender).ScrollToEnd();
+        var scroller = (ScrollViewer)sender;
+        var pinned = _pinnedToBottom.GetValueOrDefault(scroller, true);
+        var (nextPinned, shouldScroll) = UpdateScrollFollowState(
+            pinned,
+            e.VerticalOffset, e.VerticalChange,
+            e.ViewportHeight, e.ViewportHeightChange,
+            e.ExtentHeight, e.ExtentHeightChange);
+        _pinnedToBottom[scroller] = nextPinned;
+        if (shouldScroll) scroller.ScrollToEnd();
+    }
+
+    /// <summary>スクロール変化を受けて「一番下への追従状態」と「いま一番下へ送るべきか」を決める。</summary>
+    public static (bool NextPinned, bool ShouldScrollToEnd) UpdateScrollFollowState(
+        bool isPinned,
+        double verticalOffset, double verticalChange,
+        double viewportHeight, double viewportHeightChange,
+        double extentHeight, double extentHeightChange)
+    {
+        if (verticalChange < 0) return (false, false);
+
+        if (!isPinned)
+        {
+            // 追従が切れている間は、高さ再計算による位置補正では追従に戻さない。
+            // ユーザー操作で下端まで戻ったときだけ追従を再開する。
+            var atBottom = extentHeightChange == 0
+                && verticalChange > 0
+                && verticalOffset + viewportHeight >= extentHeight - BottomTolerance;
+            return (atBottom, false);
+        }
+
+        if (extentHeightChange <= 0) return (true, false);
+
+        var shouldStick = ShouldStickToBottom(
+            verticalOffset, verticalChange,
+            viewportHeight, viewportHeightChange,
+            extentHeight, extentHeightChange);
+        return (shouldStick, shouldStick);
+    }
+
+    /// <summary>自動追従して一番下へスクロールすべきか判定する(上方向スクロール中は引き戻さない)。</summary>
+    public static bool ShouldStickToBottom(
+        double verticalOffset, double verticalChange,
+        double viewportHeight, double viewportHeightChange,
+        double extentHeight, double extentHeightChange)
+    {
+        if (extentHeightChange <= 0) return false;
+        if (verticalChange < 0) return false;
+        var previousBottom = (verticalOffset - verticalChange) + (viewportHeight - viewportHeightChange);
+        var previousExtent = extentHeight - extentHeightChange;
+        return previousBottom >= previousExtent - BottomTolerance;
     }
 
     /// <summary>あなたが発言したときは、見ている位置にかかわらず、一番下へ移る。</summary>
@@ -516,7 +648,7 @@ public partial class MainWindow : Window
         if (e.NewItems?.OfType<MessageViewModel>().Any(m => m.IsUser) != true) return;
         Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
         {
-            foreach (var scroller in Scrollers) scroller.ScrollToEnd();
+            foreach (var scroller in Scrollers) PinToBottom(scroller);
         }));
     }
 }

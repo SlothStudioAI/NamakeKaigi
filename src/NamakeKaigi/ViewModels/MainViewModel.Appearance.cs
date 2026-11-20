@@ -21,18 +21,35 @@ public sealed partial class MainViewModel
     /// <summary>いまの作業フォルダ(ツールチップや変更処理に使うフルパス)。</summary>
     public string WorkDir => _session.WorkDir;
 
+    /// <summary>作業フォルダが設定済みならtrue。未設定のままでは送信できない。</summary>
+    public bool HasWorkDir => !string.IsNullOrWhiteSpace(WorkDir);
+
+    /// <summary>作業フォルダが未設定ならtrue(画面上の誘導表示に使う)。</summary>
+    public bool IsWorkDirMissing => !HasWorkDir;
+
     /// <summary>画面の上に出す作業フォルダ(簡易表示モード時は末尾のフォルダ名だけに省略)。</summary>
-    public string WorkDirDisplay => Appearance.FormatWorkDir(WorkDir);
+    public string WorkDirDisplay => string.IsNullOrWhiteSpace(WorkDir) ? "作業フォルダ未設定" : Appearance.FormatWorkDir(WorkDir);
 
     /// <summary>作業フォルダの末尾の名前(見出しの札に出す。モードに関係なく短くする。フルパスは説明に出す)。</summary>
     public string WorkDirName
     {
         get
         {
-            if (string.IsNullOrWhiteSpace(WorkDir)) return WorkDir;
+            if (string.IsNullOrWhiteSpace(WorkDir)) return "📁 作業フォルダを選ぶ（未設定）";
             var name = System.IO.Path.GetFileName(WorkDir.TrimEnd('/', '\\'));
             return string.IsNullOrEmpty(name) ? WorkDir : name;
         }
+    }
+
+    /// <summary>作業フォルダ変更時の関連プロパティ・送信可否を一括で通知する。</summary>
+    private void RaiseWorkDirChanged()
+    {
+        Raise(nameof(WorkDir));
+        Raise(nameof(HasWorkDir));
+        Raise(nameof(IsWorkDirMissing));
+        Raise(nameof(WorkDirDisplay));
+        Raise(nameof(WorkDirName));
+        ((RelayCommand)SendCommand).RaiseCanExecuteChanged();
     }
 
     /// <summary>いまの簡易表示モード・表示名の設定。</summary>
@@ -85,6 +102,7 @@ public sealed partial class MainViewModel
         Raise(nameof(ClaudeDisplayName));
         Raise(nameof(GeminiDisplayName));
         Raise(nameof(ChappyDisplayName));
+        Raise(nameof(SelectedSummaryAgentId));
         RefreshAllOrderChoice();
         Raise(nameof(LogPathDisplay));
         Raise(nameof(WorkDirDisplay));

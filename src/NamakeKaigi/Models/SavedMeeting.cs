@@ -21,8 +21,17 @@ public sealed record MeetingState
     /// <summary>AIごとの選ばれていた労力ID。</summary>
     public Dictionary<string, string> Efforts { get; init; } = new();
 
+    /// <summary>AIごとの権限段階(read / partial / full)。古い形式ではnull。</summary>
+    public Dictionary<string, string>? Levels { get; init; }
+
     /// <summary>会議の発言一覧。</summary>
     public List<ChatEntry> Entries { get; init; } = new();
+
+    /// <summary>前の会議から引き継いだ要約(引き継ぎ会議のみ)。</summary>
+    public string? InitialSummary { get; init; }
+
+    /// <summary>自動実行(スケジュール)で開かれた会議かどうか。</summary>
+    public bool IsScheduled { get; init; }
 }
 
 /// <summary>「過去の会議を開く」一覧に出す1件分の要約。</summary>
@@ -33,6 +42,8 @@ public sealed record MeetingState
 /// <param name="Title">最初の発言(見出し用)</param>
 /// <param name="MessageCount">発言数</param>
 /// <param name="HasConversationId">CLIの会話IDが保存されているか(なければlog.mdから再開)</param>
+/// <param name="IsScheduled">自動実行(スケジュール)で開かれた会議か</param>
+/// <param name="HasSummary">summary.md がすでに作成されているか</param>
 public sealed record SavedMeetingSummary(
     string FolderName,
     string FolderPath,
@@ -40,7 +51,9 @@ public sealed record SavedMeetingSummary(
     DateTime StartedAt,
     string Title,
     int MessageCount,
-    bool HasConversationId)
+    bool HasConversationId,
+    bool IsScheduled = false,
+    bool HasSummary = false)
 {
     /// <summary>会議の名前(会議室の名前)。新しい形式のフォルダ(起動時刻/会議名)から取る。古い形式は名前がないので空。</summary>
     public string MeetingName

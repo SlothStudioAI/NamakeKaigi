@@ -26,28 +26,29 @@ public sealed partial class MainViewModel
         if (member is null || member.Participant.Id == Participants.UserId)
             return new ScheduleOutcome(false, $"相手「{job.Agent}」が見つかりません(claude / gemini / chappy のどれかを書いてください)。");
         if (!member.IsPresent)
-            return new ScheduleOutcome(false, $"{member.Participant.DisplayName}は、この会議室に参加していません。");
+            return new ScheduleOutcome(false, $"{member.DisplayName}は、この会議室に参加していません。");
         if (member.LevelOptions.All(o => o.Id != job.Level))
-            return new ScheduleOutcome(false, $"{member.Participant.DisplayName}には、段階「{job.Level}」がありません。");
+            return new ScheduleOutcome(false, $"{member.DisplayName}には、段階「{job.Level}」がありません。");
 
         member.SelectedLevelId = job.Level;
         if (member.SelectedLevelId != job.Level) // 設定でその段階が使えない(例: 何でもできるの引数が未設定)ときは、気づけるよう止める
-            return new ScheduleOutcome(false, $"{member.Participant.DisplayName}を段階「{job.Level}」にできませんでした(設定で使えない段階です)。");
+            return new ScheduleOutcome(false, $"{member.DisplayName}を段階「{job.Level}」にできませんでした(設定で使えない段階です)。");
 
         // モデルの指定があれば、この会議室だけで切り替える(設定ファイルのふだんのモデルは、書き換えない)
         if (job.Model is not null)
         {
             if (!member.CanChooseModel)
-                return new ScheduleOutcome(false, $"{member.Participant.DisplayName}は、モデルを選べません(予約のモデル指定を外してください)。");
+                return new ScheduleOutcome(false, $"{member.DisplayName}は、モデルを選べません(予約のモデル指定を外してください)。");
             _session.SetModelForThisMeeting(job.Agent, job.Model);
             member.SetOptions(_session.ModelOptionsFor(job.Agent), job.Model);
             member.ModelText = LabelOf(member, job.Model) ?? (job.Model.Length == 0 ? AgyAgent.UnspecifiedModelLabel : job.Model);
         }
 
         Target = ToChatTarget(job.Agent);
+        _session.MarkAsScheduled();
         var before = Messages.ToHashSet();
         var modelText = job.Model is null ? "" : $"・モデル: {(job.Model.Length == 0 ? "指定なし" : job.Model)}";
-        var display = $"⏰ 予約「{job.Name}」を実行します({member.Participant.DisplayName}・{member.LevelLabel}{modelText})。\n\n{job.Prompt}";
+        var display = $"⏰ 予約「{job.Name}」を実行します({member.DisplayName}・{member.LevelLabel}{modelText})。\n\n{job.Prompt}";
         await SendCoreAsync(display, job.Prompt, new[] { job.Agent });
 
         var errors = Messages.Where(m => !before.Contains(m) && m.IsError).Select(m => m.Text).ToList();

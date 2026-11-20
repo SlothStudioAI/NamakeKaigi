@@ -226,6 +226,26 @@ public static class SettingsLoader
         });
     }
 
+    /// <summary>設定ファイルの要約・コンテキストアラート設定(summary)だけを書き換える。</summary>
+    /// <param name="path">settings.json のパス</param>
+    /// <param name="summary">新しい要約設定</param>
+    public static void SaveSummary(string path, SummarySettings summary)
+    {
+        UpdateRoot(path, root =>
+        {
+            root["summary"] = new JsonObject
+            {
+                ["enabled"] = summary.Enabled,
+                ["agentId"] = summary.AgentId ?? "",
+                ["model"] = summary.Model ?? "",
+                ["maxMessages"] = summary.MaxMessages,
+                ["maxChars"] = summary.MaxChars,
+                ["maxTok"] = summary.MaxTokens,
+                ["archiveDays"] = summary.ArchiveDays,
+            };
+        });
+    }
+
     /// <summary>設定ファイルのリモートの合言葉(remote.token)だけを書き換える。</summary>
     /// <param name="path">settings.json のパス</param>
     /// <param name="token">新しい合言葉</param>

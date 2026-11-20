@@ -25,6 +25,9 @@ public interface IChatSession
     /// <summary>過去の会議を開き直したときに復元された発言一覧(新規会議なら空)。</summary>
     IReadOnlyList<ChatEntry> RestoredEntries => Array.Empty<ChatEntry>();
 
+    /// <summary>過去の会議を開き直したときに復元されたAIごとの権限段階(新規会議や旧形式ならnull)。</summary>
+    IReadOnlyDictionary<string, string>? RestoredLevels => null;
+
     /// <summary>保存されている過去の会議一覧(新しい順)を返す。</summary>
     IReadOnlyList<SavedMeetingSummary> ListPastMeetings() => Array.Empty<SavedMeetingSummary>();
 
@@ -195,4 +198,13 @@ public interface IChatSession
     /// <summary>簡易表示モード・表示名の設定を更新し、settings.json にも保存する。</summary>
     /// <param name="appearance">新しい設定</param>
     void SetAppearance(AppearanceSettings appearance) { }
+
+    /// <summary>現在の会議のコンテキスト使用量(発言数・累積文字数・Gemini実トークン数)を返す。</summary>
+    ContextMetrics GetContextMetrics() => ContextMetrics.Empty;
+
+    /// <summary>現在記録されている確定済み発言一覧のスナップショットを返す。</summary>
+    IReadOnlyList<ChatEntry> GetEntriesSnapshot() => Array.Empty<ChatEntry>();
+
+    /// <summary>この会議が自動実行(スケジュール)で開始されたことを記録する。</summary>
+    void MarkAsScheduled() { }
 }

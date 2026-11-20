@@ -50,6 +50,15 @@ internal sealed class FakeAgent : IChatAgent
     /// <summary>返答の前に、途中の知らせとして流す内容。</summary>
     public IReadOnlyList<AgentUpdate> Updates { get; init; } = Array.Empty<AgentUpdate>();
 
+    /// <inheritdoc />
+    public bool CanWrite { get; init; }
+
+    /// <inheritdoc />
+    public bool CanFull { get; init; }
+
+    /// <inheritdoc />
+    public bool FullMode { get; set; }
+
     /// <summary>呼ばれた記録(本文, 渡された会話ID)。</summary>
     public List<(string Prompt, string? ConversationId)> Calls { get; } = new();
 

@@ -11,6 +11,7 @@ public partial class App : Application
 {
     private System.Windows.Threading.DispatcherTimer? _scheduleTimer;
     private Services.Remote.RemoteServer? _remote;
+    private CancellationTokenSource? _backgroundCts;
 
     /// <summary>二重起動の判定に使う名前(ユーザーのセッションの中だけで有効)。</summary>
     private const string SingleInstanceName = "Local\\NamakeKaigi_SingleInstance";
@@ -56,6 +57,8 @@ public partial class App : Application
     /// <param name="e">終了の情報</param>
     protected override void OnExit(ExitEventArgs e)
     {
+        _backgroundCts?.Cancel();
+        _backgroundCts?.Dispose();
         if (_remote is not null) _remote.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3));
         _singleInstance?.Dispose();
         base.OnExit(e);
@@ -76,25 +79,13 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// 作業フォルダ(各AIが作業する場所)が空、または見つからないとき、選ぶ窓を出す(初回の起動など)。
-    /// 選ばれたら保存する。選ばれなければ、この回だけ「ドキュメント」を使う(次の起動で、また聞く)。
+    /// 起動時の作業フォルダを整える。保存されたフォルダが存在しない・空のときは空文字(未設定)のまま返し、
+    /// 勝手にフォルダ選択ダイアログを開いたり仮フォルダを決めたりしない。
     /// </summary>
     /// <param name="workDir">設定の作業フォルダ</param>
-    /// <param name="settingsPath">ユーザーの設定ファイルのパス(選ばれたフォルダの保存先)</param>
-    /// <returns>使う作業フォルダ</returns>
-    private static string EnsureWorkDir(string workDir, string settingsPath)
-    {
-        if (!string.IsNullOrWhiteSpace(workDir) && Directory.Exists(workDir)) return workDir;
-        var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        var dialog = new Microsoft.Win32.OpenFolderDialog
-        {
-            Title = "作業フォルダを選んでください(各AIが、ファイルを読み書きする場所です。あとから変えられます)",
-            InitialDirectory = documents,
-        };
-        if (dialog.ShowDialog() != true) return documents.Replace('\\', '/');
-        SettingsLoader.SaveWorkDir(settingsPath, dialog.FolderName);
-        return dialog.FolderName.Replace('\\', '/');
-    }
+    /// <returns>存在する作業フォルダ、または未設定の空文字</returns>
+    private static string ResolveInitialWorkDir(string workDir) =>
+        !string.IsNullOrWhiteSpace(workDir) && Directory.Exists(workDir) ? workDir : "";
 
     // 画面に知らせた例外のメッセージ(同じ例外が繰り返されても、知らせは1回だけにする)
     private readonly HashSet<string> _reportedErrors = new();
@@ -160,20 +151,32 @@ public partial class App : Application
                     $"ユーザーの設定ファイルが壊れていたため、別の名前に移して、標準の設定で起動します。\n\n移した先:\n{quarantined}\n\n以前の設定を戻したいときは、このファイルを開いて直してください。",
                     "ナマケ会議", MessageBoxButton.OK, MessageBoxImage.Warning);
             var settings = SettingsLoader.ResolvePaths(SettingsLoader.Load(defaultsPath, settingsPath), AppContext.BaseDirectory);
+            Models.ThemeCatalog.Apply(settings.Theme);
             // 各AIのCLIを探す。見つからないAIは、カードを出さない(1人でもいれば会議できる)
             var (located, installedAis) = CliLocator.Detect(settings);
             settings = located;
             if (installedAis.Count == 0)
-                MessageBox.Show("AIのCLI(Claude Code・Antigravity の agy・Codex)が、どれも見つかりませんでした。\n" +
-                    "どれか1つを入れてから、起動し直してください。入っているのに見つからないときは、設定画面の「場所」で、CLIの場所を選んでください。",
-                    "ナマケ会議", MessageBoxButton.OK, MessageBoxImage.Information);
-            Models.ThemeCatalog.Apply(settings.Theme);
-            settings = settings with { WorkDir = EnsureWorkDir(settings.WorkDir, settingsPath) };
+            {
+                // MainWindow 作成前にダイアログを閉じたとき、アプリが即終了しないよう一時的に切り替える
+                ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                var guide = new Views.CliSetupGuideWindow(() =>
+                {
+                    var (retried, found) = CliLocator.Detect(settings);
+                    if (found.Count == 0) return false;
+                    settings = retried;
+                    installedAis = found;
+                    return true;
+                });
+                guide.ShowDialog();
+                ShutdownMode = ShutdownMode.OnLastWindowClose;
+            }
+            settings = settings with { WorkDir = ResolveInitialWorkDir(settings.WorkDir) };
             Views.MarkdownFormatter.StreamRenderInterval = TimeSpan.FromMilliseconds(Math.Max(0, settings.StreamRenderIntervalMs));
             Services.LinkDetector.Probe = settings.LinkProbe ?? new Models.LinkProbeSettings();
+            var processRunner = new ProcessRunner();
             var factory = new ChatSessionFactory(
                 settings,
-                new ProcessRunner(),
+                processRunner,
                 saveWorkDir: dir => SettingsLoader.SaveWorkDir(settingsPath, dir),
                 saveClaude: claude => SettingsLoader.SaveClaudeHarness(settingsPath, claude),
                 saveAgy: agy => SettingsLoader.SaveAgyHarness(settingsPath, agy),
@@ -196,10 +199,23 @@ public partial class App : Application
                     speech = Services.Voicevox.VoicevoxSpeechService.Create(voice.Voicevox ?? new Models.VoicevoxSettings(), speech);
             }
             // 起動時は1部屋。画面は、いま選ばれている部屋を映す(タブで部屋を切り替えると、映す部屋が変わる)
+            var summarySettings = settings.Summary ?? new Models.SummarySettings();
+            var summaryService = new MeetingSummaryService(s =>
+                MeetingSummaryService.CreateSummaryAgent(settings, processRunner, installedAis, s));
+            var backfillService = new MeetingSummaryBackfillService(summaryService);
             var rooms = new ViewModels.MeetingRooms(
                 () => new MainViewModel(factory.Create, speech: speech, voice: voice,
                     defaultParticipants: settings.DefaultParticipants, roomTitleMaxChars: settings.RoomTitleMaxChars,
-                    installedAis: installedAis),
+                    installedAis: installedAis,
+                    summarySessionFactory: factory.CreateWithSummary,
+                    summaryService: summaryService,
+                    summarySettings: summarySettings,
+                    onSummarySettingsChanged: s =>
+                    {
+                        summarySettings = s;
+                        SettingsLoader.SaveSummary(settingsPath, s);
+                    },
+                    backfillService: backfillService),
                 settings.MaxRooms);
             var rosterSettings = settings.Roster ?? new Models.RosterSettings();
             var window = new MainWindow
@@ -224,6 +240,31 @@ public partial class App : Application
                 _scheduleTimer.Start();
             }
             window.Show();
+            if (installedAis.Count > 0 && string.IsNullOrWhiteSpace(settings.WorkDir))
+            {
+                MessageBox.Show(
+                    window,
+                    "AIが読み書きする「作業フォルダ」がまだ選ばれていません。\n" +
+                    "会議を始める前に、画面上部の「作業フォルダを選ぶ（未設定）」ボタンからフォルダを選択してください。",
+                    "ナマケ会議",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            // 起動後のバックグラウンド整理: 古い会議を _archive/yyyy-MM/ へ移し、未作成の summary.md を順次補完する
+            _backgroundCts = new CancellationTokenSource();
+            var bgToken = _backgroundCts.Token;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    MeetingArchiveService.ArchiveOldMeetings(settings.MeetingsDir, summarySettings.ArchiveDays, DateTime.Now);
+                    await backfillService.BackfillAllAsync(settings.MeetingsDir, summarySettings, bgToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    // アプリ終了時のキャンセルは無視
+                }
+            }, bgToken);
             // リモートは、設定で有効にしたときだけ使う(既定はオフ)
             if (settings.Remote is { Enabled: true } remote)
                 _ = StartRemoteAsync(remote, settingsPath, rooms, window);

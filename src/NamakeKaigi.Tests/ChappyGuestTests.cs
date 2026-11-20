@@ -134,7 +134,7 @@ public class ChappyGuestTests
         var settings = SettingsLoader.Load(Path.Combine(AppContext.BaseDirectory, "settings.json"));
         using var dir = new TempDir();
         var runner = new FakeRunner { Lines = { Started, Message, Completed } };
-        var session = new ChatSessionFactory(settings with { MeetingsDir = dir.Path }, runner).Create();
+        var session = new ChatSessionFactory(settings with { MeetingsDir = dir.Path, WorkDir = dir.Path }, runner).Create();
         var vm = new MainViewModel(() => session);
 
         var chappy = vm.ChappyMember;

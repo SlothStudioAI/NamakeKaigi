@@ -100,74 +100,124 @@
                     </Style.Triggers>
                 </Style>
             </Border.Style>
-            <StackPanel Orientation="Horizontal" Margin="8,4,8,0">
-                <ItemsControl ItemsSource="{Binding Rooms.Items}">
+            <DockPanel LastChildFill="False" Margin="8,4,8,0">
+                <ItemsControl DockPanel.Dock="Left" ItemsSource="{Binding Rooms.Items}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal"/>
+                            <views:BrowserTabPanel ReservedTrailingWidth="42"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,4,0">
-                                <TextBox Text="{Binding RoomTitleEdit, UpdateSourceTrigger=PropertyChanged}" MinWidth="120" Padding="4,2" Margin="0,0,4,0"
-                                         VerticalAlignment="Center" FontSize="13"
-                                         Background="{DynamicResource InputBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderBrush="{DynamicResource InputBorderBrush}"
-                                         KeyDown="OnRoomTitleEditKeyDown" LostKeyboardFocus="OnRoomTitleEditLostFocus"
-                                         IsVisibleChanged="OnRoomTitleEditVisibleChanged"
-                                         ToolTip="Enterで決める / Escでやめる">
-                                    <TextBox.Style>
-                                        <Style TargetType="TextBox">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsRenamingRoom}" Value="True">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBox.Style>
-                                </TextBox>
-                                <Button Command="{Binding SelectRoomCommand}" MouseDoubleClick="OnRoomTabDoubleClick"
-                                        ToolTip="ダブルクリックで、この部屋の名前を変えます">
-                                    <Button.Style>
-                                        <Style TargetType="Button" BasedOn="{StaticResource RoomTabButton}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsRenamingRoom}" Value="True">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="●" Margin="0,0,6,0" VerticalAlignment="Center" FontSize="10"
-                                                   Foreground="{DynamicResource SidebarAccentBrush}"
-                                                   ToolTip="この部屋で、AIが返答を作っています"
-                                                   Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}"/>
-                                        <TextBlock Text="{Binding RoomTitle}">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsCurrentRoom}" Value="True">
-                                                            <Setter Property="FontWeight" Value="Bold"/>
-                                                            <Setter Property="Foreground" Value="{DynamicResource SidebarAccentBrush}"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                    </StackPanel>
-                                </Button>
-                                <Button Content="✕" Command="{Binding CloseRoomCommand}" Style="{StaticResource RoomTabButton}" FontSize="10"
-                                        ToolTip="この部屋を閉じます(裏で動いているAIも止まります)"
-                                        Visibility="{Binding Rooms.CanCloseRoom, Converter={StaticResource BoolToVisibility}}"/>
-                            </StackPanel>
+                            <Border Margin="0,4,4,0" CornerRadius="6,6,0,0" Padding="2,0"
+                                    AllowDrop="True"
+                                    PreviewMouseLeftButtonDown="OnRoomTabPreviewMouseLeftButtonDown"
+                                    PreviewMouseMove="OnRoomTabPreviewMouseMove"
+                                    DragOver="OnRoomTabDragOver"
+                                    Drop="OnRoomTabDrop">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource SidebarHoverBrush}"/>
+                                            </Trigger>
+                                            <DataTrigger Binding="{Binding IsCurrentRoom}" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource MainBackgroundBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="✕" Command="{Binding CloseRoomCommand}"
+                                            ToolTip="この部屋を閉じます(裏で動いているAIも止まります)"
+                                            Visibility="{Binding Rooms.CanCloseRoom, Converter={StaticResource BoolToVisibility}}">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource RoomTabCloseButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsCurrentRoom}" Value="True">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <TextBox Text="{Binding RoomTitleEdit, UpdateSourceTrigger=PropertyChanged}" MinWidth="120" Padding="4,2" Margin="4,2"
+                                             VerticalAlignment="Center" FontSize="13"
+                                             Background="{DynamicResource InputBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderBrush="{DynamicResource InputBorderBrush}"
+                                             KeyDown="OnRoomTitleEditKeyDown" LostKeyboardFocus="OnRoomTitleEditLostFocus"
+                                             IsVisibleChanged="OnRoomTitleEditVisibleChanged"
+                                             ToolTip="Enterで決める / Escでやめる">
+                                        <TextBox.Style>
+                                            <Style TargetType="TextBox">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsRenamingRoom}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBox.Style>
+                                    </TextBox>
+                                    <Button Command="{Binding SelectRoomCommand}" MouseDoubleClick="OnRoomTabDoubleClick"
+                                            ToolTip="ダブルクリックで、この部屋の名前を変えます">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource RoomTabTitleButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsRenamingRoom}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsCurrentRoom}" Value="True">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                        <DockPanel>
+                                            <Border DockPanel.Dock="Left" Background="#F59E0B" CornerRadius="8" Width="15" Height="15"
+                                                    Margin="0,0,6,0" VerticalAlignment="Center"
+                                                    ToolTip="新しい返答が届いています（あなたの番です）"
+                                                    Visibility="{Binding HasUnreadBadge, Converter={StaticResource BoolToVisibility}}">
+                                                <TextBlock Text="!" Foreground="White" FontSize="10" FontWeight="Bold"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <TextBlock DockPanel.Dock="Left" Text="●" Margin="0,0,6,0" VerticalAlignment="Center" FontSize="10"
+                                                       ToolTip="この部屋で、AIが返答を作っています"
+                                                       Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource SidebarAccentBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsCurrentRoom}" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource AccentGreenBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding RoomTitle}" TextTrimming="CharacterEllipsis">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsCurrentRoom}" Value="True">
+                                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </DockPanel>
+                                    </Button>
+                                </DockPanel>
+                            </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <Button Content="＋" Command="{Binding Rooms.AddRoomCommand}" Style="{StaticResource RoomTabButton}"
+                <Button DockPanel.Dock="Left" Content="＋" Command="{Binding Rooms.AddRoomCommand}" Style="{StaticResource RoomTabButton}"
                         ToolTip="会議室を増やします(別の話題を同時に進められます)"/>
-            </StackPanel>
+            </DockPanel>
         </Border>
 
         <!-- ===== 下: メイン領域(左サイドバー＋右チャット) ===== -->
@@ -188,8 +238,6 @@
                         <Button Content="過去の会議" Tag="&#xE81C;" Click="OnOpenPastMeetings"
                                 Style="{StaticResource SidebarNavButton}"
                                 ToolTip="過去の会議の一覧から選んで、続きから話します"/>
-                        <Button Content="＋ 新しい会議" Style="{StaticResource SidebarButton}"
-                                Command="{Binding NewMeetingCommand}" Margin="0,8,0,0"/>
                     </StackPanel>
                     <!-- アプリ名の見出しは置かない(名前はタイトルバーとタスクバーに出す。メンバーのカードを上に詰めるため) -->
                     <TextBlock DockPanel.Dock="Top" Text="MEMBERS" Foreground="{DynamicResource SidebarMutedTextBrush}"
@@ -437,7 +485,17 @@
                         </Button>
                         <!-- 作業フォルダ(ここでAIがファイルを読み書きする)。変更すると、次の発言から効く -->
                         <Button x:Name="WorkDirButton" Content="{Binding WorkDirName}" Click="OnChooseWorkDir"
-                                Style="{StaticResource WorkDirChip}" Margin="8,0,0,0">
+                                Margin="8,0,0,0">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource WorkDirChip}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsWorkDirMissing}" Value="True">
+                                            <Setter Property="Foreground" Value="{DynamicResource WarningTextBrush}"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
                             <Button.ToolTip>
                                 <TextBlock Text="{Binding WorkDir, StringFormat=作業フォルダ(AIがここで読み書きします。押すと選び直せます。次の発言から効きます)&#x0a;{0}}"/>
                             </Button.ToolTip>
@@ -462,6 +520,7 @@
                               Template="{StaticResource VirtualChatListTemplate}"
                               ItemsPanel="{StaticResource VirtualChatPanel}" Padding="28,4,28,4"
                               VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel"
+                              VirtualizingPanel.VirtualizationMode="Recycling"
                               VirtualizingPanel.CacheLengthUnit="Page" VirtualizingPanel.CacheLength="1,1"
                               Visibility="{Binding IsTimelineView, Converter={StaticResource BoolToVisibility}}">
                     <ItemsControl.Resources>
@@ -500,7 +559,8 @@
                             <ItemsControl x:Name="ClaudeList" ItemsSource="{Binding ClaudeMessages}" ItemTemplate="{StaticResource MessageTemplate}"
                                           Template="{StaticResource VirtualChatListTemplate}" ItemsPanel="{StaticResource VirtualChatPanel}"
                                           Padding="10,0,10,4" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel"
-                              VirtualizingPanel.CacheLengthUnit="Page" VirtualizingPanel.CacheLength="1,1"/>
+                                          VirtualizingPanel.VirtualizationMode="Recycling"
+                                          VirtualizingPanel.CacheLengthUnit="Page" VirtualizingPanel.CacheLength="1,1"/>
                         </DockPanel>
                     </Border>
 
@@ -513,7 +573,8 @@
                             <ItemsControl x:Name="GeminiList" ItemsSource="{Binding GeminiMessages}" ItemTemplate="{StaticResource MessageTemplate}"
                                           Template="{StaticResource VirtualChatListTemplate}" ItemsPanel="{StaticResource VirtualChatPanel}"
                                           Padding="10,0,10,4" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel"
-                              VirtualizingPanel.CacheLengthUnit="Page" VirtualizingPanel.CacheLength="1,1"/>
+                                          VirtualizingPanel.VirtualizationMode="Recycling"
+                                          VirtualizingPanel.CacheLengthUnit="Page" VirtualizingPanel.CacheLength="1,1"/>
                         </DockPanel>
                     </Border>
 
@@ -526,7 +587,8 @@
                             <ItemsControl x:Name="ChappyList" ItemsSource="{Binding ChappyMessages}" ItemTemplate="{StaticResource MessageTemplate}"
                                           Template="{StaticResource VirtualChatListTemplate}" ItemsPanel="{StaticResource VirtualChatPanel}"
                                           Padding="10,0,10,4" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel"
-                              VirtualizingPanel.CacheLengthUnit="Page" VirtualizingPanel.CacheLength="1,1"/>
+                                          VirtualizingPanel.VirtualizationMode="Recycling"
+                                          VirtualizingPanel.CacheLengthUnit="Page" VirtualizingPanel.CacheLength="1,1"/>
                         </DockPanel>
                     </Border>
                 </Grid>
@@ -594,6 +656,75 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
+                        <!-- 送信ボタンの上に作業フォルダ未設定の案内・コンテキスト計測・「要約して新しい会議へ」ボタンを配置 -->
+                        <DockPanel LastChildFill="False" Margin="0,0,0,6">
+                            <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource WarningTextBrush}"
+                                       Visibility="{Binding IsWorkDirMissing, Converter={StaticResource BoolToVisibility}}"
+                                       Text="⚠ 作業フォルダが未設定です。上の「作業フォルダを選ぶ（未設定）」から選択すると送信できます"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock x:Name="ContextMetricsLabel" Text="{Binding ContextMetricsText}" FontSize="11" VerticalAlignment="Center"
+                                       ToolTipService.InitialShowDelay="150" ToolTipService.ShowDuration="30000"
+                                       ToolTip="{Binding ContextMetricsTooltip}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsContextAlert}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentGreenBrush}"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <Button x:Name="SummarizeNewMeetingButton" Content="{Binding SummarizeButtonText}"
+                                    Command="{Binding SummarizeAndNewMeetingCommand}"
+                                    Visibility="{Binding ShowSummarizeButton, Converter={StaticResource BoolToVisibility}}"
+                                    Margin="8,0,0,0"
+                                    ToolTip="今の会議を軽量モデルで要約し、新しい会議へ裏で引き継ぎます">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="FontSize" Value="11"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                        <Setter Property="Background" Value="{DynamicResource PanelInsetBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
+                                        <Setter Property="BorderThickness" Value="1"/>
+                                        <Setter Property="Padding" Value="10,3"/>
+                                        <Setter Property="MinHeight" Value="24"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                            CornerRadius="12" Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentGreenBrush}"/>
+                                                            <Setter Property="Foreground" Value="{DynamicResource AccentGreenBrush}"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsContextAlert}" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource AccentGreenBrush}"/>
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentGreenBrush}"/>
+                                                <Setter Property="Foreground" Value="White"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            </StackPanel>
+                        </DockPanel>
+
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -606,9 +737,18 @@
                                     BorderBrush="{DynamicResource InputBorderBrush}"
                                     CornerRadius="{StaticResource CornerRadiusMedium}" Padding="12,8">
                                 <DockPanel LastChildFill="True">
-                                    <!-- 自分のアバター(サイドバーの「あなた」のカードの代わり。マウスを乗せると名前が出る) -->
+                                    <!-- 自分のアバター(サイドバーの「あなた」のカードの代わり。マウスを乗せると名前が出る。簡易表示モードでは隠して入力欄を広く使う) -->
                                     <Grid DockPanel.Dock="Left" DataContext="{Binding UserMember}" Width="28" Height="28"
                                           VerticalAlignment="Top" Margin="0,10,10,0" ToolTip="{Binding DisplayName}">
+                                        <Grid.Style>
+                                            <Style TargetType="Grid">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsBusinessMode}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Grid.Style>
                                         <Ellipse Width="28" Height="28"
                                                  Visibility="{Binding ShowImageAvatar, Converter={StaticResource BoolToVisibility}}">
                                             <Ellipse.Fill>
@@ -650,7 +790,8 @@
                                     Margin="8,0,0,0" MinHeight="48" Padding="16,0"
                                     ToolTip="実行中のAIの返答を停止(キャンセル)します"/>
                         </Grid>
-                        <TextBlock Text="Enterで送信 / Shift+Enterで改行 / Ctrl+Vでスクショ添付 / ファイル・フォルダをドラッグ&amp;ドロップで添付" FontSize="11" Margin="2,6,0,0"
+                        <TextBlock Margin="2,6,0,0" Text="Enterで送信 / Shift+Enterで改行 / Ctrl+Vでスクショ添付 / ファイル・フォルダをドラッグ&amp;ドロップで添付"
+                                   FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                    Foreground="{DynamicResource TextMutedBrush}"/>
                     </StackPanel>
                 </Border>

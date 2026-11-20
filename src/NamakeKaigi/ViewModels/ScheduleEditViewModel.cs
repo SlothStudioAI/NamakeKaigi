@@ -38,12 +38,19 @@ public sealed class ScheduleEditViewModel : ViewModelBase
     /// <param name="original">編集する予約(新しく足すならnull)</param>
     /// <param name="clock">いまの時刻を返す関数(「次の3回」の計算に使う)</param>
     /// <param name="modelOptionsFor">相手の識別名から、選べるモデルの一覧を返す関数</param>
+    /// <param name="resolveAgentName">相手の識別名から表示名を返す関数(省略時は既定の表記)</param>
     public ScheduleEditViewModel(ScheduledJob? original, Func<DateTime> clock,
-        Func<string, IReadOnlyList<ModelOption>> modelOptionsFor)
+        Func<string, IReadOnlyList<ModelOption>> modelOptionsFor,
+        Func<string, string>? resolveAgentName = null)
     {
         _original = original;
         _clock = clock;
         _modelOptionsFor = modelOptionsFor;
+        var resolve = resolveAgentName ?? (id => Participants.Get(id).DisplayName);
+        AgentOptions = Participants.All
+            .Where(p => p.Id != Participants.UserId)
+            .Select(p => new AgentChoice(p.Id, resolve(p.Id)))
+            .ToList();
         _name = original?.Name ?? "";
         _cron = original?.Cron ?? "0 0 * * *";
         _prompt = original?.Prompt ?? "";
@@ -62,8 +69,7 @@ public sealed class ScheduleEditViewModel : ViewModelBase
     public string Title => _original is null ? "予約を追加" : "予約を編集";
 
     /// <summary>相手の選択肢(クロ・ジェミ・チャッピー)。</summary>
-    public IReadOnlyList<AgentChoice> AgentOptions { get; } = Participants.All
-        .Where(p => p.Id != Participants.UserId).Select(p => new AgentChoice(p.Id, p.DisplayName)).ToList();
+    public IReadOnlyList<AgentChoice> AgentOptions { get; }
 
     /// <summary>名前(会議室の名前にもなる)。</summary>
     public string Name

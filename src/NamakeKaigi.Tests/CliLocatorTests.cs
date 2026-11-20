@@ -37,6 +37,20 @@ public class CliLocatorTests
     }
 
     [Fact]
+    public void PATHになくても_agyの標準インストール先にあれば見つかる()
+    {
+        var localAgy = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "agy", "bin", "agy.exe");
+        var (settings, installed) = CliLocator.Detect(Settings(agy: @"C:\not-found\agy.exe"),
+            exists: p => p == localAgy,
+            resolve: n => n);
+
+        Assert.Equal(new[] { Participants.GeminiId }, installed);
+        Assert.Equal(localAgy, settings.Agy.Executable);
+    }
+
+    [Fact]
     public void 見つかったAIだけを返し_見つかった場所を設定に入れる()
     {
         var (settings, installed) = CliLocator.Detect(Settings(),

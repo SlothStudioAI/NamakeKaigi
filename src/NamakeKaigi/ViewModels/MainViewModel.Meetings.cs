@@ -39,9 +39,30 @@ public sealed partial class MainViewModel
     /// <summary>会議を切り替える。</summary>
     /// <param name="nextSession">次の会議</param>
     /// <param name="reopened">過去の会議を開き直したならtrue(参加者はその会議に合わせる)。新しい会議ならfalse(既定の参加者)</param>
-    private void SwitchSession(IChatSession nextSession, bool reopened)
+    /// <param name="nextRoomTitle">新しい会議に引き継ぐ部屋名(省略時は現在の部屋名を維持)</param>
+    /// <param name="inheritedLevels">引き継ぐ各AIの権限段階(省略時は全員「読む」で初期化)</param>
+    private void SwitchSession(
+        IChatSession nextSession,
+        bool reopened,
+        string? nextRoomTitle = null,
+        IReadOnlyDictionary<string, string>? inheritedLevels = null)
     {
-        if (!ReferenceEquals(nextSession, _session)) _session.Shutdown(); // 前の会議の、起動したままのCLIを終わらせる
+        if (!ReferenceEquals(nextSession, _session))
+        {
+            var prevSession = _session;
+            var prevFolder = System.IO.Path.GetDirectoryName(prevSession.LogPath);
+            var backfill = _backfillService;
+            var summarySettings = _summarySettings;
+            _ = Task.Run(async () =>
+            {
+                prevSession.Shutdown(); // 前の会議の、起動したままのCLIをバックグラウンドで終わらせる
+                if (backfill is not null && summarySettings.Enabled
+                    && !string.IsNullOrWhiteSpace(prevFolder) && System.IO.Directory.Exists(prevFolder))
+                {
+                    await backfill.EnsureSummaryAsync(prevFolder, summarySettings).ConfigureAwait(false);
+                }
+            });
+        }
         _session = nextSession;
         _lists.Clear();
         Attachments.Clear();
@@ -63,6 +84,7 @@ public sealed partial class MainViewModel
         }
         ApplyModelLabels();
         ApplyWritePermissions();
+        ApplyInheritedLevels(reopened ? _session.RestoredLevels : inheritedLevels);
         ApplyAppearanceToAll();
         _ = RefreshModelOptionsAsync();
         _selectedThemeId = ThemeCatalog.GetOrDefault(_session.ThemeId).Id;
@@ -74,19 +96,19 @@ public sealed partial class MainViewModel
         Raise(nameof(AllOrderHint));
         Raise(nameof(LogPath));
         Raise(nameof(LogPathDisplay));
-        Raise(nameof(WorkDir));
-        Raise(nameof(WorkDirDisplay));
-        Raise(nameof(WorkDirName));
-        ApplyMeetingTitle(reopened);
+        RaiseWorkDirChanged();
+        ApplyMeetingTitle(reopened, nextRoomTitle);
+        RefreshContextMetrics();
     }
 
     /// <summary>
     /// 会議を切り替えたあと、会議の名前とタブの名前をそろえる。
     /// 過去の会議を開き直したなら、会議ログに書いてある名前をタブに戻す(書いてなければ、タブもログも変えない)。
-    /// 新しい会議なら、いまのタブの名前を、新しい会議の名前(会議フォルダの名前)にする。
+    /// 新しい会議なら、引き継ぎ名(指定時)またはいまのタブの名前を、新しい会議の名前(会議フォルダの名前)にする。
     /// </summary>
     /// <param name="reopened">過去の会議を開き直したならtrue</param>
-    private void ApplyMeetingTitle(bool reopened)
+    /// <param name="nextRoomTitle">新しい会議に引き継ぐ部屋名(省略時は現在の部屋名を維持)</param>
+    private void ApplyMeetingTitle(bool reopened, string? nextRoomTitle = null)
     {
         if (reopened)
         {
@@ -95,8 +117,24 @@ public sealed partial class MainViewModel
         }
         else
         {
+            if (!string.IsNullOrWhiteSpace(nextRoomTitle))
+                Set(ref _roomTitle, nextRoomTitle.Trim(), nameof(RoomTitle));
             _session.SetMeetingTitle(_roomTitle);
             RaiseLogPathChanged();
+        }
+    }
+
+    private void ApplyInheritedLevels(IReadOnlyDictionary<string, string>? inheritedLevels)
+    {
+        if (inheritedLevels is null || inheritedLevels.Count == 0) return;
+        foreach (var m in Members.Where(m => m.Participant.Id != Participants.UserId))
+        {
+            if (!inheritedLevels.TryGetValue(m.Participant.Id, out var levelId)) continue;
+            if (string.IsNullOrWhiteSpace(levelId) || levelId == PermissionLevelOption.ReadId) continue;
+            if (!m.CanWrite) continue;
+            m.SelectedLevelId = levelId == PermissionLevelOption.FullId && !m.CanFull
+                ? PermissionLevelOption.PartialId
+                : levelId;
         }
     }
 }

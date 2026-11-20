@@ -52,11 +52,16 @@ public sealed class ChatSessionFactory
 
     /// <summary>新しい会議を始める(会議フォルダとログを作る)。</summary>
     /// <returns>会議の進行役</returns>
-    public IChatSession Create()
+    public IChatSession Create() => CreateWithSummary(null);
+
+    /// <summary>前の会議の要約を引き継いで、新しい会議を始める。</summary>
+    /// <param name="initialSummary">引き継ぐ要約テキスト(空なら通常の新しい会議)</param>
+    /// <returns>会議の進行役</returns>
+    public IChatSession CreateWithSummary(string? initialSummary)
     {
         // 置き場所は 保存先/起動した時刻/会議名/(フォルダは最初の発言のときに作る)
         var log = new MarkdownLogWriter(MarkdownLogWriter.SessionDirFor(_settings.MeetingsDir, _launchedAt), DateTime.Now);
-        return CreateCore(log, restoredState: null);
+        return CreateCore(log, restoredState: null, initialSummary: initialSummary);
     }
 
     /// <summary>保存されている過去の会議一覧(新しい順)を返す。</summary>
@@ -76,7 +81,7 @@ public sealed class ChatSessionFactory
         return CreateCore(log, restored);
     }
 
-    private IChatSession CreateCore(MarkdownLogWriter log, MeetingState? restoredState)
+    private IChatSession CreateCore(MarkdownLogWriter log, MeetingState? restoredState, string? initialSummary = null)
     {
         var timeout = TimeSpan.FromSeconds(_settings.TimeoutSec);
         IChatAgent[] agents =
@@ -155,6 +160,7 @@ public sealed class ChatSessionFactory
                 _saveAllOrder?.Invoke(order);
             },
             relay: _settings.Relay,
-            callNames: _settings.CallNames);
+            callNames: _settings.CallNames,
+            initialSummary: initialSummary);
     }
 }

@@ -82,6 +82,16 @@
   "scheduleFile": "",
   "maxInjectChars": 4000,
   "timeoutSec": 600,
+  "summary": {
+    "enabled": true,
+    "agentId": "",
+    "model": "",
+    "maxMessages": 130,
+    "maxChars": 65000,
+    "warnTok": 200000,
+    "maxTok": 250000,
+    "archiveDays": 30
+  },
   "remote": {
     "enabled": false,
     "port": 8765

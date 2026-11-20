@@ -59,9 +59,16 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Margin="0,0,0,10">
-            <TextBlock Text="過去の会議を開き直して、続きから話す" FontSize="17" FontWeight="Bold"
-                       Foreground="{DynamicResource TextPrimaryBrush}"/>
-            <TextBlock Text="会話IDが保存されている会議はそのまま続きから、IDがない古い会議やCLI側で消えた会議は過去のログを先頭に添えて再開します。"
+            <DockPanel>
+                <CheckBox x:Name="HideScheduledCheckBox" DockPanel.Dock="Right" Content="自動実行を隠す"
+                          IsChecked="True" VerticalAlignment="Center" FontSize="12"
+                          Foreground="{DynamicResource TextPrimaryBrush}"
+                          Checked="OnFilterChanged" Unchecked="OnFilterChanged"
+                          ToolTip="自動実行(スケジュール)で記録された会議を一覧から隠します"/>
+                <TextBlock Text="過去の会議を開き直して、続きから話す" FontSize="17" FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+            </DockPanel>
+            <TextBlock Text="「そのまま開く」は会話IDや過去ログから再開し、「要約を引き継いで新しく開く」は要約だけを新会議へ引き継ぎます。"
                        FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
                        Foreground="{DynamicResource TextMutedBrush}"/>
         </StackPanel>
@@ -109,8 +116,11 @@
         </Border>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-            <Button Content="キャンセル" Style="{StaticResource CancelBtn}" Click="OnCancel" Margin="0,0,8,0"/>
-            <Button x:Name="OpenButton" Content="この会議を開く" Style="{StaticResource PrimaryBtn}" Click="OnOpen" IsEnabled="False"/>
+            <Button x:Name="CancelButton" Content="キャンセル" Style="{StaticResource CancelBtn}" Click="OnCancel" Margin="0,0,8,0"/>
+            <Button x:Name="OpenWithSummaryButton" Content="要約を引き継いで新しく開く" Style="{StaticResource CancelBtn}"
+                    Click="OnOpenWithSummary" IsEnabled="False" Margin="0,0,8,0"
+                    ToolTip="summary.md（なければその場で生成）を新しい会議へ裏で引き継いで開始します"/>
+            <Button x:Name="OpenButton" Content="そのまま開く" Style="{StaticResource PrimaryBtn}" Click="OnOpen" IsEnabled="False"/>
         </StackPanel>
     </Grid>
 </Window>

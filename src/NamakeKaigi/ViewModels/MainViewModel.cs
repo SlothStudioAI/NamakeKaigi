@@ -45,11 +45,26 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <param name="defaultParticipants">新しい会議の最初に参加しているAIの識別名(省略・空・知らない名前だけなら全員)</param>
     /// <param name="roomTitleMaxChars">会議室の名前の長さの上限(文字。1未満は1にそろえる)</param>
     /// <param name="installedAis">CLIが見つかったAIの識別名(省略時は全員。入っていないAIは、カードを出さず参加させない)</param>
+    /// <param name="summarySessionFactory">要約を引き継いだ新しい会議を作る関数(省略時は要約引き継ぎなし)</param>
+    /// <param name="summaryService">会議の要約を作るサービス(省略時は要約機能なし)</param>
+    /// <param name="summarySettings">要約・コンテキストアラートの初期設定(省略時は標準)</param>
+    /// <param name="onSummarySettingsChanged">要約設定が変更されたときに保存する処理</param>
+    /// <param name="backfillService">タブ閉じ・切替時に summary.md を保存するサービス(省略可)</param>
     public MainViewModel(Func<IChatSession> sessionFactory, Func<DateTime>? clock = null,
         ISpeechService? speech = null, VoiceSettings? voice = null,
         IReadOnlyList<string>? defaultParticipants = null, int roomTitleMaxChars = 30,
-        IReadOnlyCollection<string>? installedAis = null)
+        IReadOnlyCollection<string>? installedAis = null,
+        Func<string?, IChatSession>? summarySessionFactory = null,
+        MeetingSummaryService? summaryService = null,
+        SummarySettings? summarySettings = null,
+        Action<SummarySettings>? onSummarySettingsChanged = null,
+        MeetingSummaryBackfillService? backfillService = null)
     {
+        _summarySessionFactory = summarySessionFactory;
+        _summaryService = summaryService;
+        _backfillService = backfillService;
+        _summarySettings = summarySettings ?? new SummarySettings();
+        _onSummarySettingsChanged = onSummarySettingsChanged;
         _roomTitleMaxChars = Math.Max(1, roomTitleMaxChars);
         _sessionFactory = sessionFactory;
         _defaultParticipants = NormalizeParticipants(defaultParticipants);
@@ -80,9 +95,10 @@ public sealed partial class MainViewModel : ViewModelBase
                 }
             };
         }
-        SendCommand =new RelayCommand(() => _ = SendAsync(), () => !string.IsNullOrWhiteSpace(InputText) || Attachments.Count > 0);
+        SendCommand = new RelayCommand(() => _ = SendAsync(), () => HasWorkDir && (!string.IsNullOrWhiteSpace(InputText) || Attachments.Count > 0));
         CancelCommand = new RelayCommand(CancelPending, () => IsBusy);
         NewMeetingCommand = new RelayCommand(StartNewMeeting);
+        SummarizeAndNewMeetingCommand = new RelayCommand(() => _ = SummarizeAndNewMeetingAsync(), () => CanSummarize);
         SelectRoomCommand = new RelayCommand(() => Rooms?.Select(this));
         CloseRoomCommand = new RelayCommand(() => Rooms?.Close(this), () => Rooms?.CanCloseRoom ?? false);
         Attachments.CollectionChanged += (_, _) =>
@@ -92,6 +108,7 @@ public sealed partial class MainViewModel : ViewModelBase
         };
         ApplyModelLabels();
         ApplyAppearanceToAll();
+        RefreshContextMetrics();
         _ = RefreshModelOptionsAsync();
     }
 
@@ -124,8 +141,23 @@ public sealed partial class MainViewModel : ViewModelBase
 
     public ICommand NewMeetingCommand { get; }
 
+    private bool _hasUnreadReply;
+
     /// <summary>いずれかのAIが返答中(考え中・返答作成中)ならtrue。停止ボタンの表示に使う。</summary>
     public bool IsBusy => Members.Any(m => m.IsThinking);
+
+    /// <summary>裏のタブでAIの返答や承認待ちが届き、まだそのタブを開いていなければtrue。</summary>
+    public bool HasUnreadReply
+    {
+        get => _hasUnreadReply;
+        internal set
+        {
+            if (Set(ref _hasUnreadReply, value)) Raise(nameof(HasUnreadBadge));
+        }
+    }
+
+    /// <summary>タブにオレンジ色の「自分の番（返答待ち）」バッジを出すならtrue(考え中は●を優先して出さない)。</summary>
+    public bool HasUnreadBadge => HasUnreadReply && !IsBusy;
 
     /// <summary>実行中のAIの返答待ちをすべてキャンセル(停止)する。</summary>
     public void CancelPending()

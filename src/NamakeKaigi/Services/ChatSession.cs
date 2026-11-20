@@ -23,6 +23,10 @@ public sealed class ChatSession : IChatSession
     private readonly Func<IReadOnlyList<SavedMeetingSummary>>? _listPastMeetings;
     private readonly Func<string, IChatSession>? _openPastMeeting;
     private readonly List<CancellationTokenSource> _activeCts = new();
+    private readonly string? _initialSummary;
+    private readonly HashSet<string> _summaryInjected = new();
+    private readonly string? _geminiBrainDir;
+    private bool _isScheduled;
 
     /// <summary>会議を始める。</summary>
     /// <param name="agents">参加するAI</param>
@@ -63,8 +67,12 @@ public sealed class ChatSession : IChatSession
         string allOrder = AllOrders.Parallel,
         Action<string>? onAllOrderChanged = null,
         RelaySettings? relay = null,
-        CallNameSettings? callNames = null)
+        CallNameSettings? callNames = null,
+        string? initialSummary = null,
+        string? geminiBrainDir = null)
     {
+        _initialSummary = string.IsNullOrWhiteSpace(initialSummary) ? null : initialSummary.Trim();
+        _geminiBrainDir = geminiBrainDir;
         CallNames = callNames ?? CallNameSettings.Default;
         WorkDir = workDir;
         AllOrder = AllOrders.Normalize(allOrder);
@@ -90,7 +98,10 @@ public sealed class ChatSession : IChatSession
 
         if (restoredState is not null)
         {
+            _initialSummary ??= string.IsNullOrWhiteSpace(restoredState.InitialSummary) ? null : restoredState.InitialSummary.Trim();
+            _isScheduled = restoredState.IsScheduled;
             RestoredEntries = restoredState.Entries;
+            RestoredLevels = restoredState.Levels;
             _transcript.Restore(restoredState.Entries, restoredState.SeenPositions);
             foreach (var (id, convId) in restoredState.ConversationIds)
             {
@@ -121,6 +132,9 @@ public sealed class ChatSession : IChatSession
 
     /// <inheritdoc />
     public IReadOnlyList<ChatEntry> RestoredEntries { get; } = Array.Empty<ChatEntry>();
+
+    /// <inheritdoc />
+    public IReadOnlyDictionary<string, string>? RestoredLevels { get; }
 
     /// <inheritdoc />
     public IReadOnlyList<SavedMeetingSummary> ListPastMeetings() =>
@@ -211,7 +225,11 @@ public sealed class ChatSession : IChatSession
     public bool CanWrite(string agentId) => _agents[agentId].CanWrite;
 
     /// <inheritdoc />
-    public void SetWriter(string agentId, bool isWriter) => _agents[agentId].WriteMode = isWriter;
+    public void SetWriter(string agentId, bool isWriter)
+    {
+        _agents[agentId].WriteMode = isWriter;
+        SaveState();
+    }
 
     /// <inheritdoc />
     public bool CanRunCommands(string agentId) => _agents[agentId].CanRunCommands;
@@ -223,7 +241,11 @@ public sealed class ChatSession : IChatSession
     public bool CanFull(string agentId) => _agents[agentId].CanFull;
 
     /// <inheritdoc />
-    public void SetFull(string agentId, bool enabled) => _agents[agentId].FullMode = enabled;
+    public void SetFull(string agentId, bool enabled)
+    {
+        _agents[agentId].FullMode = enabled;
+        SaveState();
+    }
 
     /// <inheritdoc />
     public string HarnessSummary(string agentId) =>
@@ -469,8 +491,13 @@ public sealed class ChatSession : IChatSession
         try
         {
             var existingConvId = _conversationIds.GetValueOrDefault(id);
+            var injectSummary = !string.IsNullOrWhiteSpace(_initialSummary)
+                                && string.IsNullOrEmpty(existingConvId)
+                                && !_summaryInjected.Contains(id)
+                ? _initialSummary
+                : null;
             var (unseen, upTo) = _transcript.PeekUnseen(id, _maxInjectChars);
-            var prompt = PromptComposer.Compose(unseen, agent.Name, relayNote);
+            var prompt = PromptComposer.Compose(unseen, agent.Name, relayNote, injectSummary);
             AgentReply reply;
             try
             {
@@ -483,8 +510,9 @@ public sealed class ChatSession : IChatSession
                 workStarted = false;
                 _conversationIds.Remove(id);
                 _transcript.ResetSeen(id);
+                injectSummary ??= !_summaryInjected.Contains(id) ? _initialSummary : null;
                 (unseen, upTo) = _transcript.PeekUnseen(id, _maxInjectChars);
-                prompt = PromptComposer.Compose(unseen, agent.Name, relayNote);
+                prompt = PromptComposer.Compose(unseen, agent.Name, relayNote, injectSummary);
                 reply = await agent.AskAsync(prompt, null, OnUpdate, ct);
             }
 
@@ -492,6 +520,7 @@ public sealed class ChatSession : IChatSession
             restartReason = retried ? "retry+" + agent.LastTurnRestartReason : agent.LastTurnRestartReason;
             replyChars = reply.Text.Length;
             if (!string.IsNullOrEmpty(reply.ConversationId)) _conversationIds[id] = reply.ConversationId;
+            if (injectSummary is not null) _summaryInjected.Add(id);
             _transcript.MarkSeen(id, upTo);
             Record(id, reply.Text);
             if (!string.IsNullOrEmpty(reply.Model)) notify(new ChatProgress(id, ChatProgressKind.Model, reply.Model));
@@ -570,9 +599,33 @@ public sealed class ChatSession : IChatSession
                 SeenPositions = _transcript.GetSeenSnapshot(),
                 Models = _agents.ToDictionary(kv => kv.Key, kv => kv.Value.ModelId),
                 Efforts = _agents.ToDictionary(kv => kv.Key, kv => kv.Value.EffortId),
+                Levels = _agents.ToDictionary(
+                    kv => kv.Key,
+                    kv => kv.Value.FullMode ? PermissionLevelOption.FullId
+                        : kv.Value.WriteMode ? PermissionLevelOption.PartialId
+                        : PermissionLevelOption.ReadId),
                 Entries = entries,
+                InitialSummary = _initialSummary,
+                IsScheduled = _isScheduled,
             };
             MeetingStore.SaveState(_log.StatePath, state);
         }
+    }
+
+    /// <inheritdoc />
+    public ContextMetrics GetContextMetrics()
+    {
+        var entries = _transcript.GetEntriesSnapshot();
+        return ContextMetricsService.Measure(entries, _conversationIds, _geminiBrainDir);
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<ChatEntry> GetEntriesSnapshot() => _transcript.GetEntriesSnapshot();
+
+    /// <inheritdoc />
+    public void MarkAsScheduled()
+    {
+        _isScheduled = true;
+        SaveState();
     }
 }

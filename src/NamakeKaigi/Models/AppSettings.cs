@@ -83,6 +83,7 @@ public sealed record RelaySettings(
 /// <param name="Remote">リモート(スマホのブラウザから参加)の設定。省略時はオフ</param>
 /// <param name="LinkProbe">返答の中のパスが実在するかを調べるときの待ち時間などの設定(省略時は標準)</param>
 /// <param name="StreamRenderIntervalMs">返答が流れてくる間、吹き出しの中身を作り直す最短の間隔(ミリ秒)。省略時は200。0なら届くたびに作り直す</param>
+/// <param name="Summary">会議の要約・コンテキストアラート・アーカイブの設定(省略時は標準)</param>
 public sealed record AppSettings(
     ClaudeSettings Claude,
     AgySettings Agy,
@@ -105,7 +106,31 @@ public sealed record AppSettings(
     int StreamRenderIntervalMs = 200,
     string? ScheduleFile = null,
     RemoteSettings? Remote = null,
-    LinkProbeSettings? LinkProbe = null);
+    LinkProbeSettings? LinkProbe = null,
+    SummarySettings? Summary = null);
+
+/// <summary>会議の要約・コンテキストアラート・アーカイブ整理の設定。</summary>
+/// <param name="Enabled">要約機能(引き継ぎ要約・summary.md 自動生成)を有効にするか(既定 true)</param>
+/// <param name="AgentId">要約に使うAIの識別名(空ならインストール済みの軽量モデルを自動選択。claude / gemini / chappy)</param>
+/// <param name="Model">要約に使うモデルID(空なら対象AIの最軽量モデルを自動選択)</param>
+/// <param name="MaxMessages">2段階目の発言数の目安(既定 130)</param>
+/// <param name="MaxChars">2段階目の累積文字数の目安(既定 65000)</param>
+/// <param name="MaxTokens">2段階目の実トークン数の目安(既定 250000)</param>
+/// <param name="ArchiveDays">古い会議を _archive/yyyy-MM/ へ移すまでの日数(既定 30)</param>
+/// <param name="WarnMessages">区切りの目安を出す発言数(既定 100)</param>
+/// <param name="WarnChars">区切りの目安を出す累積文字数(既定 45000)</param>
+/// <param name="WarnTokens">区切りの目安を出す実トークン数(既定 200000)</param>
+public sealed record SummarySettings(
+    bool Enabled = true,
+    string AgentId = "",
+    string Model = "",
+    int MaxMessages = 130,
+    int MaxChars = 65000,
+    [property: System.Text.Json.Serialization.JsonPropertyName("maxTok")] int MaxTokens = 250000,
+    int ArchiveDays = 30,
+    int WarnMessages = 100,
+    int WarnChars = 45000,
+    [property: System.Text.Json.Serialization.JsonPropertyName("warnTok")] int WarnTokens = 200000);
 
 /// <summary>チャッピー(Codex CLI)の設定。段階は、読むだけ(既定) / 一部できる(書き換え) / 何でもできる。</summary>
 /// <param name="Executable">実行ファイル(PATHにあれば名前だけでよい)</param>

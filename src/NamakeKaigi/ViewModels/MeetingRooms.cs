@@ -114,10 +114,23 @@ public sealed class MeetingRooms : ViewModelBase
     public void Select(MainViewModel room)
     {
         if (!Items.Contains(room) || ReferenceEquals(room, _current)) return;
+        _current.TriggerSummarySave();
         _current = room;
         RefreshCurrentMarks();
         Raise(nameof(Current));
         CurrentChanged?.Invoke(room);
+    }
+
+    /// <summary>タブの並び順を入れ替える(ドラッグ＆ドロップ用)。現在の部屋や会話状態はそのまま保つ。</summary>
+    /// <param name="source">動かす部屋</param>
+    /// <param name="target">移動先の位置にある部屋</param>
+    public void Move(MainViewModel source, MainViewModel target)
+    {
+        if (ReferenceEquals(source, target)) return;
+        var from = Items.IndexOf(source);
+        var to = Items.IndexOf(target);
+        if (from < 0 || to < 0 || from == to) return;
+        Items.Move(from, to);
     }
 
     /// <summary>その部屋を閉じる(返答待ちを止め、裏のCLIを終わらせる)。最後の1部屋は閉じない。</summary>
@@ -131,6 +144,7 @@ public sealed class MeetingRooms : ViewModelBase
         Items.Remove(room);
         room.PropertyChanged -= OnRoomPropertyChanged;
         room.AppearanceUpdated -= OnAppearanceUpdated;
+        room.SummaryUpdated -= OnSummaryUpdated;
         room.Rooms = null;
         NotifyCountChanged();
         if (wasCurrent) Select(Items[Math.Min(index, Items.Count - 1)]);
@@ -142,6 +156,7 @@ public sealed class MeetingRooms : ViewModelBase
         room.Rooms = this;
         room.PropertyChanged += OnRoomPropertyChanged;
         room.AppearanceUpdated += OnAppearanceUpdated;
+        room.SummaryUpdated += OnSummaryUpdated;
         return room;
     }
 
@@ -187,5 +202,11 @@ public sealed class MeetingRooms : ViewModelBase
     private void OnAppearanceUpdated(MainViewModel changed, Models.AppearanceSettings appearance)
     {
         foreach (var room in Items.Where(r => !ReferenceEquals(r, changed))) room.SyncAppearance(appearance);
+    }
+
+    /// <summary>要約設定も画面全体で1つなので、ある部屋で変えたら、ほかの部屋にも合わせる。</summary>
+    private void OnSummaryUpdated(MainViewModel changed, Models.SummarySettings summary)
+    {
+        foreach (var room in Items.Where(r => !ReferenceEquals(r, changed))) room.SyncSummarySettings(summary);
     }
 }

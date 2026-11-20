@@ -117,6 +117,7 @@ public sealed partial class MainViewModel
     /// <summary>画面に映る部屋が変わった・部屋の数が変わったことを、タブの表示に伝える。</summary>
     internal void NotifyCurrentRoomChanged()
     {
+        if (IsCurrentRoom) HasUnreadReply = false;
         Raise(nameof(IsCurrentRoom));
         ((RelayCommand)CloseRoomCommand).RaiseCanExecuteChanged();
     }
@@ -140,7 +141,9 @@ public sealed partial class MainViewModel
     public void CloseRoom()
     {
         CancelPending();
+        var folder = System.IO.Path.GetDirectoryName(_session.LogPath);
         _session.Shutdown();
+        TriggerSummarySave(folder);
     }
 
     /// <summary>会議ログのファイルパス(ツールチップや開く処理に使うフルパス)。</summary>

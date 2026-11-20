@@ -264,6 +264,12 @@ public class AgyAgentTests
             () => Make(error).AskAsync("x", null, null, CancellationToken.None));
         Assert.Contains("壊れた", ex.Message);
 
+        // agyが過去のエラー履歴を引きずって status=ERROR / error 付きで返しても、今回の response が入っていれば正常返答として扱う
+        var recovered = new FakeRunner();
+        recovered.Lines.Add("{\"event\":\"result\",\"result\":{\"conversation_id\":\"c1\",\"status\":\"ERROR\",\"response\":\"ちゃんと答えた\",\"error\":\"The stream was interrupted.\"}}");
+        var reply = await Make(recovered).AskAsync("x", "c1", null, CancellationToken.None);
+        Assert.Equal(new AgentReply("ちゃんと答えた", "c1"), reply);
+
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => Make(new FakeRunner()).AskAsync("x", null, null, CancellationToken.None));
     }

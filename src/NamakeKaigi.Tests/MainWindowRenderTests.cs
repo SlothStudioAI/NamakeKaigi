@@ -324,8 +324,8 @@ public class MainWindowRenderTests
             dlgRoot.Measure(new Size(440, 400));
             dlgRoot.Arrange(new Rect(new Size(440, 400)));
             dlgRoot.UpdateLayout();
-            Assert.Equal(2, FindVisuals<ComboBox>(dlgRoot, c => c.Visibility == Visibility.Visible).Count);
-            Assert.Equal(1, FindVisuals<CheckBox>(dlgRoot, c => c.Visibility == Visibility.Visible).Count); // 簡易表示モードだけ(読み上げは、機能を使わない設定なので出ない)
+            Assert.Equal(4, FindVisuals<ComboBox>(dlgRoot, c => c.Visibility == Visibility.Visible).Count); // 配色・制限時間・要約AI・要約モデル
+            Assert.Equal(2, FindVisuals<CheckBox>(dlgRoot, c => c.Visibility == Visibility.Visible).Count); // 簡易表示モード・会議の要約(読み上げは機能無効のため非表示)
             dlg.Content = null;
         });
     }
@@ -490,5 +490,59 @@ public class MainWindowRenderTests
     public void 貼り付けのキーだけを_画像添付の対象にする(System.Windows.Input.Key key, System.Windows.Input.ModifierKeys modifiers, bool expected)
     {
         Assert.Equal(expected, MainWindow.IsPasteGesture(key, modifiers));
+    }
+
+    [Fact]
+    public void 上方向へスクロールしている最中は_高さが増えても一番下へ引き戻さない()
+    {
+        // 直前まで一番下(500)にいたが、ユーザー操作で上(-50)へスクロールした瞬間に高さが+40増えても追従しない
+        Assert.False(MainWindow.ShouldStickToBottom(
+            verticalOffset: 450, verticalChange: -50,
+            viewportHeight: 500, viewportHeightChange: 0,
+            extentHeight: 1040, extentHeightChange: 40));
+
+        // 一番下を見ている状態で、スクロール操作なし(verticalChange: 0)で高さが増えたときは追従する
+        Assert.True(MainWindow.ShouldStickToBottom(
+            verticalOffset: 500, verticalChange: 0,
+            viewportHeight: 500, viewportHeightChange: 0,
+            extentHeight: 1040, extentHeightChange: 40));
+
+        // 上の過去発言を見ている最中に高さが増えても追従しない
+        Assert.False(MainWindow.ShouldStickToBottom(
+            verticalOffset: 100, verticalChange: 0,
+            viewportHeight: 500, viewportHeightChange: 0,
+            extentHeight: 1040, extentHeightChange: 40));
+    }
+
+    [Fact]
+    public void 一度上へ動かしたあとは_仮想化の高さ再計算で正の補正が起きても引き戻さず_下端に戻ったら追従を再開する()
+    {
+        // 上へスクロールして追従OFFになった状態(isPinned: false)で、
+        // 仮想化による高さ再計算(extentHeightChange: +300)と位置補正(verticalChange: +300)が同時に起きても引き戻さない
+        var (pinned1, scroll1) = MainWindow.UpdateScrollFollowState(
+            isPinned: false,
+            verticalOffset: 790, verticalChange: 300,
+            viewportHeight: 500, viewportHeightChange: 0,
+            extentHeight: 1300, extentHeightChange: 300);
+        Assert.False(pinned1);
+        Assert.False(scroll1);
+
+        // ユーザーが自分の操作(extentHeightChange: 0, verticalChange: +100)で一番下まで戻したら追従ONに戻る
+        var (pinned2, scroll2) = MainWindow.UpdateScrollFollowState(
+            isPinned: false,
+            verticalOffset: 800, verticalChange: 100,
+            viewportHeight: 500, viewportHeightChange: 0,
+            extentHeight: 1300, extentHeightChange: 0);
+        Assert.True(pinned2);
+        Assert.False(scroll2);
+
+        // 追従ONに戻ったあと、新着発言で高さが増えたら一番下へ追従する
+        var (pinned3, scroll3) = MainWindow.UpdateScrollFollowState(
+            isPinned: true,
+            verticalOffset: 800, verticalChange: 0,
+            viewportHeight: 500, viewportHeightChange: 0,
+            extentHeight: 1360, extentHeightChange: 60);
+        Assert.True(pinned3);
+        Assert.True(scroll3);
     }
 }

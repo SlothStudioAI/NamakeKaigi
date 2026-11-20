@@ -724,4 +724,27 @@ public class MainViewModelTests
         Assert.Equal("QA担当", vm.GeminiDisplayName);
         Assert.Equal("🔍 QA担当に聞く", vm.Messages[1].AskTargets[0].Label);
     }
+
+    [Fact]
+    public async Task 作業フォルダ未設定のあいだは送信できず_設定後に送信可能になる()
+    {
+        var session = new FakeSession();
+        session.SetWorkDir("");
+        var vm = new MainViewModel(() => session);
+
+        Assert.False(vm.HasWorkDir);
+        Assert.True(vm.IsWorkDirMissing);
+        Assert.Equal("📁 作業フォルダを選ぶ（未設定）", vm.WorkDirName);
+
+        vm.InputText = "こんにちは";
+        Assert.False(vm.SendCommand.CanExecute(null));
+        await vm.SendAsync();
+        Assert.Empty(session.Sent);
+
+        vm.ChangeWorkDir("C:/Work/MyProj");
+        Assert.True(vm.HasWorkDir);
+        Assert.False(vm.IsWorkDirMissing);
+        Assert.Equal("MyProj", vm.WorkDirName);
+        Assert.True(vm.SendCommand.CanExecute(null));
+    }
 }

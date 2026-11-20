@@ -17,18 +17,34 @@ public static class CliLocator
         [Participants.ChappyId] = "codex",
     };
 
+    /// <summary>設定・PATHのどちらにも見つからないときに、追加で探す標準的なインストール先。</summary>
+    private static IEnumerable<string> ExtraFallbackPaths(string id)
+    {
+        if (id != Participants.GeminiId) yield break;
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (!string.IsNullOrWhiteSpace(localAppData))
+            yield return Path.Combine(localAppData, "agy", "bin", "agy.exe");
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrWhiteSpace(userProfile))
+            yield return Path.Combine(userProfile, ".gemini", "bin", "agy.exe");
+    }
+
     /// <summary>CLIの実行ファイルを探す。</summary>
     /// <param name="configured">設定にある場所(フルパス、または名前だけ)</param>
     /// <param name="fallbackName">設定の場所になかったとき、PATHから探す名前(省略可)</param>
     /// <param name="exists">ファイルがあるかを確かめる処理(試験で差し替える。省略時は実際のファイル)</param>
     /// <param name="resolve">名前からPATHを探す処理(試験で差し替える。省略時は ProcessRunner.ResolveExecutable)</param>
+    /// <param name="extraPaths">PATHにもないときに確認する追加の候補パス(省略可)</param>
     /// <returns>見つかった実行ファイルのパス。見つからなければnull</returns>
     public static string? Find(string configured, string? fallbackName = null,
-        Func<string, bool>? exists = null, Func<string, string>? resolve = null)
+        Func<string, bool>? exists = null, Func<string, string>? resolve = null,
+        IEnumerable<string>? extraPaths = null)
     {
         exists ??= File.Exists;
         resolve ??= ProcessRunner.ResolveExecutable;
-        foreach (var name in new[] { configured, fallbackName })
+        var candidates = new List<string?> { configured, fallbackName };
+        if (extraPaths is not null) candidates.AddRange(extraPaths);
+        foreach (var name in candidates)
         {
             if (string.IsNullOrWhiteSpace(name)) continue;
             var path = resolve(name);
@@ -50,7 +66,7 @@ public static class CliLocator
         var installed = new List<string>();
         string? Locate(string id, string configured)
         {
-            var found = Find(configured, FallbackNames[id], exists, resolve);
+            var found = Find(configured, FallbackNames[id], exists, resolve, ExtraFallbackPaths(id));
             if (found is not null) installed.Add(id);
             return found;
         }

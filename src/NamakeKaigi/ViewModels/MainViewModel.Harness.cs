@@ -14,9 +14,7 @@ public sealed partial class MainViewModel
     {
         if (string.IsNullOrWhiteSpace(workDir)) return;
         _session.SetWorkDir(workDir);
-        Raise(nameof(WorkDir));
-        Raise(nameof(WorkDirDisplay));
-        Raise(nameof(WorkDirName));
+        RaiseWorkDirChanged();
     }
 
     /// <summary>Claudeのいまの設定を取り出す(ハーネス編集画面を開くため)。</summary>
