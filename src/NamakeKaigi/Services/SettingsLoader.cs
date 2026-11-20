@@ -238,9 +238,9 @@ public static class SettingsLoader
                 ["enabled"] = summary.Enabled,
                 ["agentId"] = summary.AgentId ?? "",
                 ["model"] = summary.Model ?? "",
-                ["maxMessages"] = summary.MaxMessages,
-                ["maxChars"] = summary.MaxChars,
-                ["maxTok"] = summary.MaxTokens,
+                ["warnMessages"] = summary.WarnMessages,
+                ["warnChars"] = summary.WarnChars,
+                ["warnTok"] = summary.WarnTokens,
                 ["archiveDays"] = summary.ArchiveDays,
             };
         });

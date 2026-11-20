@@ -49,7 +49,7 @@ public sealed class ContextMetricsAndSummaryTests
         Assert.Equal((null, null), ContextMetricsService.ReadGeminiTokens("../escape", dir.Path));
         Assert.Equal((null, null), ContextMetricsService.ReadGeminiTokens("missing-id", dir.Path));
 
-        var th = new SummarySettings(MaxMessages: 10, MaxChars: 100, MaxTokens: 1000);
+        var th = new SummarySettings(WarnMessages: 10, WarnChars: 100, WarnTokens: 1000);
         var stats = new Dictionary<string, (int, int)>();
         Assert.False(ContextMetricsService.IsOverThreshold(new ContextMetrics(9, 99, 500, 499, stats), th));
         Assert.True(ContextMetricsService.IsOverThreshold(new ContextMetrics(10, 50, null, null, stats), th));
@@ -102,7 +102,7 @@ public sealed class ContextMetricsAndSummaryTests
         }
 
         var summaryService = new MeetingSummaryService(_ => summaryAgent);
-        var settings = new SummarySettings(Enabled: true, MaxMessages: 2, MaxChars: 10000, MaxTokens: 100000);
+        var settings = new SummarySettings(Enabled: true, WarnMessages: 2, WarnChars: 10000, WarnTokens: 100000);
         var vm = new MainViewModel(
             () => CreateSession(null),
             summarySessionFactory: CreateSession,
@@ -113,7 +113,7 @@ public sealed class ContextMetricsAndSummaryTests
         vm.InputText = "テスト発言";
         await vm.SendAsync();
 
-        // ユーザー発言 + Claude返答 = 2発言 >= MaxMessages(2) なのでアラートON
+        // ユーザー発言 + Claude返答 = 2発言 >= WarnMessages(2) なのでアラートON
         Assert.True(vm.IsContextAlert);
         Assert.True(vm.ShowSummarizeButton);
         Assert.True(vm.CanSummarize);
@@ -466,17 +466,16 @@ public sealed class ContextMetricsAndSummaryTests
     }
 
     [Fact]
-    public void コンテキスト目安は20万トークンで1段階目25万トークンで2段階目になる()
+    public void コンテキスト目安は既定で20万トークン以上になるとアラートになる()
     {
         var th = new SummarySettings();
         var stats = new Dictionary<string, (int, int)>();
 
         Assert.Equal(200000, th.WarnTokens);
-        Assert.Equal(250000, th.MaxTokens);
 
-        Assert.Equal(ContextAlertLevel.None, ContextMetricsService.GetAlertLevel(new ContextMetrics(10, 5000, 100000, 99999, stats), th));
-        Assert.Equal(ContextAlertLevel.Warning, ContextMetricsService.GetAlertLevel(new ContextMetrics(10, 5000, 100000, 100000, stats), th));
-        Assert.Equal(ContextAlertLevel.Danger, ContextMetricsService.GetAlertLevel(new ContextMetrics(10, 5000, 100000, 150000, stats), th));
+        Assert.False(ContextMetricsService.IsOverThreshold(new ContextMetrics(10, 5000, 100000, 99999, stats), th));
+        Assert.True(ContextMetricsService.IsOverThreshold(new ContextMetrics(10, 5000, 100000, 100000, stats), th));
+        Assert.True(ContextMetricsService.IsOverThreshold(new ContextMetrics(10, 5000, 100000, 150000, stats), th));
     }
 
     [Fact]

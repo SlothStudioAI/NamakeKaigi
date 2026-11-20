@@ -25,8 +25,12 @@ public sealed class ChatSession : IChatSession
     private readonly List<CancellationTokenSource> _activeCts = new();
     private readonly string? _initialSummary;
     private readonly HashSet<string> _summaryInjected = new();
+    private readonly Dictionary<string, (string ConvId, int Count)> _consecutiveErrors = new();
     private readonly string? _geminiBrainDir;
     private bool _isScheduled;
+
+    private const string SummaryHandoffHint =
+        "\n（エラーが続く場合は、送信欄の上にある「要約して新しい会議へ」から会話を引き継いで切り替えてみてください）";
 
     /// <summary>会議を始める。</summary>
     /// <param name="agents">参加するAI</param>
@@ -524,6 +528,7 @@ public sealed class ChatSession : IChatSession
             _transcript.MarkSeen(id, upTo);
             Record(id, reply.Text);
             if (!string.IsNullOrEmpty(reply.Model)) notify(new ChatProgress(id, ChatProgressKind.Model, reply.Model));
+            _consecutiveErrors.Remove(id);
             notify(new ChatProgress(id, ChatProgressKind.Done, reply.Text));
             outcome = "ok";
             return true;
@@ -536,7 +541,20 @@ public sealed class ChatSession : IChatSession
         }
         catch (Exception ex)
         {
-            notify(new ChatProgress(id, ChatProgressKind.Error, ex.Message));
+            var currentConvId = _conversationIds.GetValueOrDefault(id);
+            var message = ex.Message;
+            if (!string.IsNullOrEmpty(currentConvId))
+            {
+                var prev = _consecutiveErrors.TryGetValue(id, out var e) && e.ConvId == currentConvId ? e.Count : 0;
+                var count = prev + 1;
+                _consecutiveErrors[id] = (currentConvId, count);
+                if (count >= 2) message += SummaryHandoffHint;
+            }
+            else
+            {
+                _consecutiveErrors.Remove(id);
+            }
+            notify(new ChatProgress(id, ChatProgressKind.Error, message));
             return false;
         }
         finally

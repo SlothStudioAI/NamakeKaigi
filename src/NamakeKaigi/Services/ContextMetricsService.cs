@@ -6,17 +6,6 @@ using NamakeKaigi.Models;
 
 namespace NamakeKaigi.Services;
 
-/// <summary>コンテキスト計測の警告段階。</summary>
-public enum ContextAlertLevel
-{
-    /// <summary>通常。</summary>
-    None = 0,
-    /// <summary>警告(黄色)。</summary>
-    Warning = 1,
-    /// <summary>危険(赤色)。</summary>
-    Danger = 2,
-}
-
 /// <summary>会議のコンテキスト使用量(発言数・累積文字数・各AIの実トークン数)の計測結果。</summary>
 /// <param name="MessageCount">確定済みの発言数</param>
 /// <param name="TotalChars">確定済みの累積文字数</param>
@@ -294,35 +283,16 @@ public static class ContextMetricsService
         return last;
     }
 
-    /// <summary>いずれかの赤しきい値を超えているかを判定する。</summary>
+    /// <summary>いずれかの区切り目安しきい値を超えているかを判定する。</summary>
     /// <param name="metrics">計測結果</param>
     /// <param name="thresholds">しきい値設定</param>
     /// <returns>1つ以上超えていればtrue</returns>
-    public static bool IsOverThreshold(ContextMetrics metrics, SummarySettings thresholds) =>
-        GetAlertLevel(metrics, thresholds) == ContextAlertLevel.Danger;
-
-    /// <summary>コンテキスト警告の段階（通常 / 目安 / 2段階目）を判定する。</summary>
-    public static ContextAlertLevel GetAlertLevel(ContextMetrics metrics, SummarySettings thresholds)
+    public static bool IsOverThreshold(ContextMetrics metrics, SummarySettings thresholds)
     {
         var peakTok = metrics.PeakTokens;
-        if ((thresholds.MaxMessages > 0 && metrics.MessageCount >= thresholds.MaxMessages)
-            || (thresholds.MaxChars > 0 && metrics.TotalChars >= thresholds.MaxChars)
-            || (thresholds.MaxTokens > 0 && peakTok is long tokD && tokD >= thresholds.MaxTokens))
-        {
-            return ContextAlertLevel.Danger;
-        }
-
-        bool IsWarnHit(long current, int warn, int max) =>
-            warn > 0 && (max <= 0 || warn <= max) && current >= warn;
-
-        if (IsWarnHit(metrics.MessageCount, thresholds.WarnMessages, thresholds.MaxMessages)
-            || IsWarnHit(metrics.TotalChars, thresholds.WarnChars, thresholds.MaxChars)
-            || (peakTok is long tokW && IsWarnHit(tokW, thresholds.WarnTokens, thresholds.MaxTokens)))
-        {
-            return ContextAlertLevel.Warning;
-        }
-
-        return ContextAlertLevel.None;
+        return (thresholds.WarnMessages > 0 && metrics.MessageCount >= thresholds.WarnMessages)
+            || (thresholds.WarnChars > 0 && metrics.TotalChars >= thresholds.WarnChars)
+            || (thresholds.WarnTokens > 0 && peakTok is long tok && tok >= thresholds.WarnTokens);
     }
 
     /// <summary>入力欄下の1行表示テキストを作る。</summary>

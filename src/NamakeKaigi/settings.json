@@ -86,10 +86,9 @@
     "enabled": true,
     "agentId": "",
     "model": "",
-    "maxMessages": 130,
-    "maxChars": 65000,
+    "warnMessages": 100,
+    "warnChars": 45000,
     "warnTok": 200000,
-    "maxTok": 250000,
     "archiveDays": 30
   },
   "remote": {

@@ -656,6 +656,46 @@ public class ChatSessionTests
             return new AgentReply(Name + "の返答", Id);
         }
     }
+
+    [Fact]
+    public async Task 同じ会話で連続2回エラーになったときだけ_要約して新しい会議への誘導文が付く()
+    {
+        using var dir = new TempDir();
+        var claude = new FakeAgent(Participants.ClaudeId, "Claude", (_, _, n) => n switch
+        {
+            1 or 4 => new AgentReply("正常", "conv-1"),
+            _ => throw new TimeoutException("時間切れ"),
+        });
+        var gemini = new FakeAgent(Participants.GeminiId, "Gemini", (_, _, n) => new AgentReply($"g{n}", "g1"));
+        var session = new ChatSession(new[] { claude, gemini }, new MarkdownLogWriter(dir.Path, DateTime.Now), 4000);
+        var onlyClaude = new[] { Participants.ClaudeId };
+
+        var p1 = new List<ChatProgress>();
+        await session.SendAsync("1", onlyClaude, p1.Add);
+        Assert.Equal(ChatProgressKind.Done, Finals(p1).Single().Kind);
+
+        var p2 = new List<ChatProgress>();
+        await session.SendAsync("2", onlyClaude, p2.Add);
+        var err1 = Finals(p2).Single();
+        Assert.Equal(ChatProgressKind.Error, err1.Kind);
+        Assert.DoesNotContain("要約して新しい会議へ", err1.Text);
+
+        var p3 = new List<ChatProgress>();
+        await session.SendAsync("3", onlyClaude, p3.Add);
+        var err2 = Finals(p3).Single();
+        Assert.Equal(ChatProgressKind.Error, err2.Kind);
+        Assert.Contains("要約して新しい会議へ", err2.Text);
+
+        var p4 = new List<ChatProgress>();
+        await session.SendAsync("4", onlyClaude, p4.Add);
+        Assert.Equal(ChatProgressKind.Done, Finals(p4).Single().Kind);
+
+        var p5 = new List<ChatProgress>();
+        await session.SendAsync("5", onlyClaude, p5.Add);
+        var err3 = Finals(p5).Single();
+        Assert.Equal(ChatProgressKind.Error, err3.Kind);
+        Assert.DoesNotContain("要約して新しい会議へ", err3.Text);
+    }
 }
 
 public class ActivityTextTests

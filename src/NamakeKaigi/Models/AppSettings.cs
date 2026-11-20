@@ -113,9 +113,6 @@ public sealed record AppSettings(
 /// <param name="Enabled">要約機能(引き継ぎ要約・summary.md 自動生成)を有効にするか(既定 true)</param>
 /// <param name="AgentId">要約に使うAIの識別名(空ならインストール済みの軽量モデルを自動選択。claude / gemini / chappy)</param>
 /// <param name="Model">要約に使うモデルID(空なら対象AIの最軽量モデルを自動選択)</param>
-/// <param name="MaxMessages">2段階目の発言数の目安(既定 130)</param>
-/// <param name="MaxChars">2段階目の累積文字数の目安(既定 65000)</param>
-/// <param name="MaxTokens">2段階目の実トークン数の目安(既定 250000)</param>
 /// <param name="ArchiveDays">古い会議を _archive/yyyy-MM/ へ移すまでの日数(既定 30)</param>
 /// <param name="WarnMessages">区切りの目安を出す発言数(既定 100)</param>
 /// <param name="WarnChars">区切りの目安を出す累積文字数(既定 45000)</param>
@@ -124,9 +121,6 @@ public sealed record SummarySettings(
     bool Enabled = true,
     string AgentId = "",
     string Model = "",
-    int MaxMessages = 130,
-    int MaxChars = 65000,
-    [property: System.Text.Json.Serialization.JsonPropertyName("maxTok")] int MaxTokens = 250000,
     int ArchiveDays = 30,
     int WarnMessages = 100,
     int WarnChars = 45000,

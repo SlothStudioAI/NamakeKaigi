@@ -34,17 +34,8 @@ public sealed partial class MainViewModel
     /// <summary>コンテキスト表示のツールチップ（発言者別内訳・トークン内訳・しきい値）。</summary>
     public string ContextMetricsTooltip => ContextMetricsService.FormatTooltip(_contextMetrics, _summarySettings, _session.Appearance);
 
-    /// <summary>コンテキスト警告の段階（通常 / 警告(黄) / 危険(赤)）。</summary>
-    public ContextAlertLevel ContextAlertLevel => ContextMetricsService.GetAlertLevel(_contextMetrics, _summarySettings);
-
-    /// <summary>警告(黄色)しきい値に達しているか。</summary>
-    public bool IsContextWarning => ContextAlertLevel == ContextAlertLevel.Warning;
-
-    /// <summary>危険(赤色)しきい値に達しているか。</summary>
-    public bool IsContextDanger => ContextAlertLevel == ContextAlertLevel.Danger;
-
-    /// <summary>黄色または赤色のしきい値を超えているか。</summary>
-    public bool IsContextAlert => ContextAlertLevel != ContextAlertLevel.None;
+    /// <summary>区切り目安のしきい値を超えているか。</summary>
+    public bool IsContextAlert => ContextMetricsService.IsOverThreshold(_contextMetrics, _summarySettings);
 
     /// <summary>「要約して新しい会議へ」ボタンを表示するか（1発言以上あればいつでも押せる かつ 要約機能が有効）。</summary>
     public bool ShowSummarizeButton => (_contextMetrics.MessageCount > 0 || _isSummarizing) && _summarySettings.Enabled;
@@ -80,9 +71,6 @@ public sealed partial class MainViewModel
         _contextMetrics = _session.GetContextMetrics();
         Raise(nameof(ContextMetricsText));
         Raise(nameof(ContextMetricsTooltip));
-        Raise(nameof(ContextAlertLevel));
-        Raise(nameof(IsContextWarning));
-        Raise(nameof(IsContextDanger));
         Raise(nameof(IsContextAlert));
         Raise(nameof(ShowSummarizeButton));
         ((RelayCommand)SummarizeAndNewMeetingCommand).RaiseCanExecuteChanged();
