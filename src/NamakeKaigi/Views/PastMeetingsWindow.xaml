@@ -69,8 +69,24 @@
                            Foreground="{DynamicResource TextPrimaryBrush}"/>
             </DockPanel>
             <TextBlock Text="「そのまま開く」は会話IDや過去ログから再開し、「要約を引き継いで新しく開く」は要約だけを新会議へ引き継ぎます。"
-                       FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"
+                       FontSize="11.5" Margin="0,3,0,8" TextWrapping="Wrap"
                        Foreground="{DynamicResource TextMutedBrush}"/>
+            <Grid>
+                <TextBox x:Name="SearchBox" Padding="8,5,28,5" FontSize="13"
+                         Background="{DynamicResource PanelBackgroundBrush}"
+                         Foreground="{DynamicResource TextPrimaryBrush}"
+                         BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1"
+                         TextChanged="OnSearchTextChanged"
+                         ToolTip="会議名・発言・要約をキーワード検索します（スペース区切りでAND検索）"/>
+                <TextBlock x:Name="SearchPlaceholder" Text="会議名・発言・要約で検索..."
+                           Margin="10,0,28,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                           FontSize="12.5" Foreground="{DynamicResource TextMutedBrush}"/>
+                <Button x:Name="ClearSearchButton" Content="×" Width="22" Height="22"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"
+                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                        Foreground="{DynamicResource TextMutedBrush}" Visibility="Collapsed"
+                        Click="OnClearSearch" ToolTip="検索をクリア"/>
+            </Grid>
         </StackPanel>
 
         <Border Grid.Row="1" Background="{DynamicResource PanelBackgroundBrush}"
@@ -115,12 +131,17 @@
             </Grid>
         </Border>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-            <Button x:Name="CancelButton" Content="キャンセル" Style="{StaticResource CancelBtn}" Click="OnCancel" Margin="0,0,8,0"/>
-            <Button x:Name="OpenWithSummaryButton" Content="要約を引き継いで新しく開く" Style="{StaticResource CancelBtn}"
-                    Click="OnOpenWithSummary" IsEnabled="False" Margin="0,0,8,0"
-                    ToolTip="summary.md（なければその場で生成）を新しい会議へ裏で引き継いで開始します"/>
-            <Button x:Name="OpenButton" Content="そのまま開く" Style="{StaticResource PrimaryBtn}" Click="OnOpen" IsEnabled="False"/>
-        </StackPanel>
+        <DockPanel Grid.Row="2" Margin="0,12,0,0">
+            <Button x:Name="ShowMoreButton" DockPanel.Dock="Left" Content="もっと見る" Style="{StaticResource CancelBtn}"
+                    Click="OnShowMore" Visibility="Collapsed"
+                    ToolTip="引き継ぎ済みの古い会議や、51件目以降もすべて表示します"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="CancelButton" Content="キャンセル" Style="{StaticResource CancelBtn}" Click="OnCancel" Margin="0,0,8,0"/>
+                <Button x:Name="OpenWithSummaryButton" Content="要約を引き継いで新しく開く" Style="{StaticResource CancelBtn}"
+                        Click="OnOpenWithSummary" IsEnabled="False" Margin="0,0,8,0"
+                        ToolTip="summary.md（なければその場で生成）を新しい会議へ裏で引き継いで開始します"/>
+                <Button x:Name="OpenButton" Content="そのまま開く" Style="{StaticResource PrimaryBtn}" Click="OnOpen" IsEnabled="False"/>
+            </StackPanel>
+        </DockPanel>
     </Grid>
 </Window>

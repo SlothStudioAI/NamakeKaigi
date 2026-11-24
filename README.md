@@ -20,6 +20,10 @@
 [![ナマケ会議 機能紹介シリーズ(YouTube)](https://img.youtube.com/vi/WdnmPSqixZI/maxresdefault.jpg)](https://www.youtube.com/playlist?list=PLa7UtH6dgDXA)  
 ▶ **[【YouTube再生リスト】ナマケ会議 機能紹介シリーズ（全動画一覧）](https://www.youtube.com/playlist?list=PLa7UtH6dgDXA)**
 
+アップデート情報や新機能の使い方も [YouTubeチャンネル（Sloth Studio）](https://www.youtube.com/@SlothStudioAI) で発信しています。  
+無料で公開していますので、気に入っていただけたら応援してもらえると開発の励みになります！  
+▶ [チャンネル登録はこちら（YouTubeの確認画面が開きます）](https://www.youtube.com/@SlothStudioAI?sub_confirmation=1) ／ GitHub の Star も嬉しいです
+
 ---
 
 ## 💡 ナマケ会議とは？

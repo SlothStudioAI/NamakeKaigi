@@ -325,7 +325,7 @@ public class MainWindowRenderTests
             dlgRoot.Arrange(new Rect(new Size(440, 400)));
             dlgRoot.UpdateLayout();
             Assert.Equal(4, FindVisuals<ComboBox>(dlgRoot, c => c.Visibility == Visibility.Visible).Count); // 配色・制限時間・要約AI・要約モデル
-            Assert.Equal(2, FindVisuals<CheckBox>(dlgRoot, c => c.Visibility == Visibility.Visible).Count); // 簡易表示モード・会議の要約(読み上げは機能無効のため非表示)
+            Assert.Equal(5, FindVisuals<CheckBox>(dlgRoot, c => c.Visibility == Visibility.Visible).Count); // 簡易表示モード・会議の要約・初期メンバー3種(読み上げは機能無効のため非表示)
             dlg.Content = null;
         });
     }

@@ -133,6 +133,15 @@
             <DataTrigger Binding="{Binding IsBusinessMode}" Value="True">
                 <Setter TargetName="avatar" Property="Visibility" Value="Collapsed"/>
             </DataTrigger>
+            <!-- 会議内検索のハイライト -->
+            <DataTrigger Binding="{Binding IsSearchMatch}" Value="True">
+                <Setter TargetName="bubble" Property="BorderBrush" Value="{DynamicResource WarningTextBrush}"/>
+                <Setter TargetName="bubble" Property="BorderThickness" Value="2"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsCurrentSearchMatch}" Value="True">
+                <Setter TargetName="bubble" Property="BorderBrush" Value="{DynamicResource AccentGreenBrush}"/>
+                <Setter TargetName="bubble" Property="BorderThickness" Value="2.5"/>
+            </DataTrigger>
         </DataTemplate.Triggers>
     </DataTemplate>
 

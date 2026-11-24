@@ -747,4 +747,85 @@ public class MainViewModelTests
         Assert.Equal("MyProj", vm.WorkDirName);
         Assert.True(vm.SendCommand.CanExecute(null));
     }
+
+    [Fact]
+    public void 会議内検索でヒット強調と前後移動ができ_閉じるとハイライトが消える()
+    {
+        var session = new FakeSession();
+        var vm = new MainViewModel(() => session);
+        vm.Messages.Add(new MessageViewModel(Participants.User, "最初の挨拶", DateTime.Now));
+        vm.Messages.Add(new MessageViewModel(Participants.Claude, "認証のバグを確認しました", DateTime.Now));
+        vm.Messages.Add(new MessageViewModel(Participants.Gemini, "別の話題です", DateTime.Now));
+        vm.Messages.Add(new MessageViewModel(Participants.Claude, "認証を修正しました", DateTime.Now));
+
+        var scrolled = new List<MessageViewModel>();
+        vm.ScrollToMessageRequested += scrolled.Add;
+
+        vm.OpenChatSearch();
+        Assert.True(vm.IsChatSearchOpen);
+
+        vm.ChatSearchQuery = "認証";
+        Assert.Equal("2 / 2", vm.ChatSearchStatus);
+        Assert.True(vm.Messages[1].IsSearchMatch);
+        Assert.False(vm.Messages[1].IsCurrentSearchMatch);
+        Assert.True(vm.Messages[3].IsSearchMatch);
+        Assert.True(vm.Messages[3].IsCurrentSearchMatch);
+        Assert.Same(vm.Messages[3], scrolled.Last());
+
+        vm.PrevSearchMatch();
+        Assert.Equal("1 / 2", vm.ChatSearchStatus);
+        Assert.True(vm.Messages[1].IsCurrentSearchMatch);
+        Assert.False(vm.Messages[3].IsCurrentSearchMatch);
+        Assert.Same(vm.Messages[1], scrolled.Last());
+
+        vm.NextSearchMatch();
+        Assert.Equal("2 / 2", vm.ChatSearchStatus);
+        Assert.True(vm.Messages[3].IsCurrentSearchMatch);
+
+        vm.CloseChatSearch();
+        Assert.False(vm.IsChatSearchOpen);
+        Assert.Equal("", vm.ChatSearchStatus);
+        Assert.All(vm.Messages, m => Assert.False(m.IsSearchMatch || m.IsCurrentSearchMatch));
+    }
+
+    [Fact]
+    public async Task 初期メンバーを絞り_agyクロを追加でき_会議開始後は追加不可になる()
+    {
+        var savedDefaults = new List<IReadOnlyList<string>>();
+        var session = new FakeSession();
+        var vm = new MainViewModel(
+            () => session,
+            defaultParticipants: new[] { Participants.GeminiId, Participants.ChappyId },
+            onDefaultParticipantsChanged: ids => savedDefaults.Add(ids));
+
+        Assert.Equal(new[] { Participants.GeminiId, Participants.ChappyId },
+            vm.SidebarMembers.Select(m => m.Participant.Id));
+        Assert.False(vm.ClaudePresent);
+        Assert.True(vm.CanAddMember);
+        Assert.Contains(vm.AddableMembers, m => m.Participant.Id == Participants.AgyClaudeId);
+        Assert.Contains(vm.AddableMembers, m => m.Participant.Id == Participants.AgyChappyId);
+        Assert.Contains(vm.AddableMembers, m => m.Participant.Id == Participants.ClaudeId);
+
+        // agyクロを追加するとサイドバーと宛先に現れる
+        vm.AddMemberToRoom(Participants.AgyClaudeId);
+        Assert.True(vm.AgyClaudePresent);
+        Assert.Contains(vm.SidebarMembers, m => m.Participant.Id == Participants.AgyClaudeId);
+        Assert.DoesNotContain(vm.AddableMembers, m => m.Participant.Id == Participants.AgyClaudeId);
+
+        // 初期メンバーの最後の1人は外せない
+        vm.DefaultChappy = false;
+        Assert.False(vm.DefaultChappy);
+        vm.DefaultGemini = false; // 最後の1人なので拒否される
+        Assert.True(vm.DefaultGemini);
+        Assert.Single(savedDefaults);
+
+        // 会議開始後はメンバー追加不可
+        vm.InputText = "よろしく";
+        vm.TargetAgyClaude = true;
+        var sending = vm.SendAsync();
+        session.Finish(Done(Participants.AgyClaudeId, "了解"));
+        await sending;
+
+        Assert.False(vm.CanAddMember);
+    }
 }

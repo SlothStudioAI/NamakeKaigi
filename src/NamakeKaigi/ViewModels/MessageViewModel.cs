@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Windows.Input;
 using NamakeKaigi.Models;
 
@@ -12,6 +13,8 @@ public sealed class MessageViewModel : ViewModelBase
     private bool _isBusinessMode;
     private string _statusLine = "";
     private string _statusNote = "";
+    private bool _isSearchMatch;
+    private bool _isCurrentSearchMatch;
 
     /// <summary>吹き出しを作る。</summary>
     /// <param name="speaker">発言者</param>
@@ -28,13 +31,13 @@ public sealed class MessageViewModel : ViewModelBase
         IsError = isError;
         TargetIds = targetIds ?? Array.Empty<string>();
         _displayName = speaker.DisplayName;
-        // 意見を聞く相手は、発言者以外のAI全員(参加していない人のボタンは、あとで隠す)
+        // 意見を聞く相手は、発言者以外の標準AI(参加していない人のボタンは、あとで隠す。agy経由が参加したときはApplyPresenceで足す)
         AskTargets = IsUser || IsError
-            ? Array.Empty<AskTargetViewModel>()
-            : Participants.All
-                .Where(p => p.Id != Participants.UserId && p.Id != speaker.Id)
-                .Select(p => new AskTargetViewModel(this, p.Id))
-                .ToList();
+            ? new ObservableCollection<AskTargetViewModel>()
+            : new ObservableCollection<AskTargetViewModel>(
+                Participants.StandardAis
+                    .Where(p => p.Id != speaker.Id)
+                    .Select(p => new AskTargetViewModel(this, p.Id)));
     }
 
     public Participant Speaker { get; }
@@ -165,6 +168,15 @@ public sealed class MessageViewModel : ViewModelBase
     /// <param name="isPresent">識別名から、参加しているかを返す関数</param>
     public void ApplyPresence(Func<string, bool> isPresent)
     {
+        if (!IsUser && !IsError && AskTargets is ObservableCollection<AskTargetViewModel> col)
+        {
+            foreach (var p in Participants.AgyProxies)
+            {
+                if (p.Id == Speaker.Id) continue;
+                if (isPresent(p.Id) && col.All(t => t.Id != p.Id))
+                    col.Add(new AskTargetViewModel(this, p.Id));
+            }
+        }
         foreach (var target in AskTargets) target.Available = isPresent(target.Id);
     }
 
@@ -203,6 +215,20 @@ public sealed class MessageViewModel : ViewModelBase
 
     public string AvatarUri => Speaker.AvatarUri;
     public string TimeText => Time.ToString("HH:mm");
+
+    /// <summary>会議内検索のキーワードに一致しているか。</summary>
+    public bool IsSearchMatch
+    {
+        get => _isSearchMatch;
+        set => Set(ref _isSearchMatch, value);
+    }
+
+    /// <summary>会議内検索でいま選択中の発言か。</summary>
+    public bool IsCurrentSearchMatch
+    {
+        get => _isCurrentSearchMatch;
+        set => Set(ref _isCurrentSearchMatch, value);
+    }
 
     /// <summary>簡易表示モードや名前変更の設定を吹き出しに反映する。</summary>
     public void ApplyAppearance(AppearanceSettings appearance)

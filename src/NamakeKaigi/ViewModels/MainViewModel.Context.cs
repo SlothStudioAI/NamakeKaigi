@@ -87,11 +87,13 @@ public sealed partial class MainViewModel
         try
         {
             var currentLevels = CaptureMemberLevels();
+            var oldFolder = Path.GetDirectoryName(_session.LogPath);
             var summary = await _summaryService!.SummarizeAsync(entries, _summarySettings, RoomTitle);
             var nextTitle = await NextHandoverRoomTitleAsync(RoomTitle);
             _readAloud.Stop();
             var nextSession = _summarySessionFactory!(summary);
             SwitchSession(nextSession, reopened: false, nextRoomTitle: nextTitle, inheritedLevels: currentLevels);
+            MeetingStore.MarkHandedOver(oldFolder);
         }
         catch (Exception ex)
         {
@@ -137,6 +139,7 @@ public sealed partial class MainViewModel
         _readAloud.Stop();
         var nextSession = _summarySessionFactory(summary);
         SwitchSession(nextSession, reopened: false, nextRoomTitle: nextTitle, inheritedLevels: state.Levels);
+        MeetingStore.MarkHandedOver(selected.FolderPath);
     }
 
     private Dictionary<string, string> CaptureMemberLevels() =>

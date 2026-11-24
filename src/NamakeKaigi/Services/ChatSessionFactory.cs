@@ -87,7 +87,8 @@ public sealed class ChatSessionFactory
         IChatAgent[] agents =
         {
             new ClaudeAgent(_settings.Claude, _runner, _workDir, timeout) { KeepAlive = _settings.KeepAlive },
-            new AgyAgent(_settings.Agy, _runner, _workDir, timeout)
+            new AgyAgent(_settings.Agy, _runner, _workDir, timeout,
+                modelFilter: AgyAgent.IsGeminiModel)
             {
                 KeepAlive = _settings.KeepAlive,
                 ModelCachePath = ModelListCache.DefaultAgyPath(),
@@ -95,6 +96,22 @@ public sealed class ChatSessionFactory
             new CodexAgent(_settings.Codex ?? new CodexSettings(), _runner, _workDir, timeout)
             {
                 ModelCachePath = ModelListCache.DefaultCodexPath(),
+            },
+            new AgyAgent(_settings.Agy, _runner, _workDir, timeout,
+                id: Participants.AgyClaudeId, name: "Claude(agy)",
+                initialModel: "claude-sonnet-5-5-medium",
+                modelFilter: AgyAgent.IsClaudeModel)
+            {
+                KeepAlive = _settings.KeepAlive,
+                ModelCachePath = ModelListCache.DefaultAgyPath(),
+            },
+            new AgyAgent(_settings.Agy, _runner, _workDir, timeout,
+                id: Participants.AgyChappyId, name: "ChatGPT(agy)",
+                initialModel: "gpt-oss-120b-medium",
+                modelFilter: AgyAgent.IsGptModel)
+            {
+                KeepAlive = _settings.KeepAlive,
+                ModelCachePath = ModelListCache.DefaultAgyPath(),
             },
         };
         return new ChatSession(agents, log, _settings.MaxInjectChars, workDir: _workDir,

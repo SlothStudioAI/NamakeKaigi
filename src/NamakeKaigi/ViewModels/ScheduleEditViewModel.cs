@@ -47,8 +47,7 @@ public sealed class ScheduleEditViewModel : ViewModelBase
         _clock = clock;
         _modelOptionsFor = modelOptionsFor;
         var resolve = resolveAgentName ?? (id => Participants.Get(id).DisplayName);
-        AgentOptions = Participants.All
-            .Where(p => p.Id != Participants.UserId)
+        AgentOptions = Participants.StandardAis
             .Select(p => new AgentChoice(p.Id, resolve(p.Id)))
             .ToList();
         _name = original?.Name ?? "";

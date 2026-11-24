@@ -203,6 +203,17 @@ public static class SettingsLoader
     public static void SaveAllOrder(string path, string order) =>
         UpdateRoot(path, root => root["allOrder"] = order);
 
+    /// <summary>設定ファイルの初期参加メンバー(defaultParticipants)だけを書き換える。</summary>
+    /// <param name="path">settings.json のパス</param>
+    /// <param name="participantIds">参加メンバーの識別名一覧</param>
+    public static void SaveDefaultParticipants(string path, IReadOnlyList<string> participantIds) =>
+        UpdateRoot(path, root =>
+        {
+            var arr = new JsonArray();
+            foreach (var id in participantIds) arr.Add(id);
+            root["defaultParticipants"] = arr;
+        });
+
     /// <summary>設定ファイルの配色テーマ(theme)だけを書き換える。</summary>
     /// <param name="path">settings.json のパス</param>
     /// <param name="themeId">選ばれたテーマID</param>

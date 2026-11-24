@@ -17,14 +17,17 @@ public class ScheduleViewModelTests : IDisposable
         if (Directory.Exists(_dir)) Directory.Delete(_dir, recursive: true);
     }
 
-    private (ScheduleViewModel Vm, MeetingRooms Rooms) Create(int maxRooms, Func<string, ChatProgress[]>? script, params ScheduledJob[] jobs)
+    private (ScheduleViewModel Vm, MeetingRooms Rooms) Create(int maxRooms, Func<string, ChatProgress[]>? script, params ScheduledJob[] jobs) =>
+        Create(maxRooms, MeetingRooms.DefaultMaxScheduledRooms, script, jobs);
+
+    private (ScheduleViewModel Vm, MeetingRooms Rooms) Create(int maxRooms, int maxScheduledRooms, Func<string, ChatProgress[]>? script, params ScheduledJob[] jobs)
     {
         var rooms = new MeetingRooms(() =>
         {
             var session = new FakeSession { Script = script };
             _sessions.Add(session);
             return new MainViewModel(() => session);
-        }, maxRooms);
+        }, maxRooms, maxScheduledRooms);
         var store = new ScheduleStore(Path.Combine(_dir, "schedule.json"));
         store.Save(new ScheduleFile(jobs, GraceMinutes: 5));
         return (new ScheduleViewModel(rooms, store, () => _now), rooms);
@@ -111,9 +114,9 @@ public class ScheduleViewModelTests : IDisposable
     [Fact]
     public async Task 部屋が上限なら見送り_予約で開いた古い部屋があれば閉じて場所を空ける()
     {
-        var (vm, rooms) = Create(2, _ => Reply("ok"), Job("a", cron: "0 0 * * *"), Job("b", cron: "0 1 * * *"));
+        var (vm, rooms) = Create(maxRooms: 1, maxScheduledRooms: 1, _ => Reply("ok"), Job("a", cron: "0 0 * * *"), Job("b", cron: "0 1 * * *"));
 
-        _now = DateTime.Parse("2026-11-06 00:00:10"); // 1つ目 → 2部屋になり上限
+        _now = DateTime.Parse("2026-11-06 00:00:10"); // 1つ目 → 手動1 + 自動1 で自動枠が上限
         await vm.TickAsync();
         Assert.Equal(2, rooms.Items.Count);
 
@@ -128,13 +131,17 @@ public class ScheduleViewModelTests : IDisposable
     [Fact]
     public async Task 場所を空けられないときは見送りと記録する()
     {
-        // 上限1部屋: 人が使う部屋しかない
-        var (vm, rooms) = Create(1, _ => Reply("ok"), Job("a"));
+        // 自動実行上限1部屋: すでに開いた自動実行部屋をいま画面に映しているため閉じられない
+        var (vm, rooms) = Create(maxRooms: 1, maxScheduledRooms: 1, _ => Reply("ok"), Job("a", cron: "0 0 * * *"), Job("b", cron: "0 1 * * *"));
         _now = DateTime.Parse("2026-11-06 00:00:10");
         await vm.TickAsync();
+        rooms.Select(rooms.Items[1]); // 自動実行部屋を表示中にする
 
-        Assert.Single(rooms.Items);
-        var record = vm.History.Single();
+        _now = DateTime.Parse("2026-11-06 01:00:10");
+        await vm.TickAsync();
+
+        Assert.Equal(2, rooms.Items.Count);
+        var record = vm.History.First();
         Assert.Equal(ScheduleRunRecord.Skipped, record.Result);
         Assert.Contains("上限", record.Note);
     }

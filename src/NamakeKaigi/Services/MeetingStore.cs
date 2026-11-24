@@ -107,7 +107,7 @@ public static class MeetingStore
             .Where(dir => !string.Equals(Path.GetFileName(dir), ArchiveDirName, StringComparison.OrdinalIgnoreCase))
             .SelectMany(dir => IsMeetingFolder(dir) ? new[] { dir } : SafeSubDirs(dir).Where(IsMeetingFolder));
 
-        var result = new List<SavedMeetingSummary>();
+        var items = new List<(SavedMeetingSummary Summary, bool HasInitialSummary)>();
         foreach (var dir in candidates)
         {
             var state = LoadState(dir);
@@ -123,7 +123,7 @@ public static class MeetingStore
             var hasConvId = state.ConversationIds.Values.Any(v => !string.IsNullOrWhiteSpace(v));
             var isScheduled = IsScheduledMeeting(dir, state);
             var hasSummary = File.Exists(Path.Combine(dir, SummaryFileName));
-            result.Add(new SavedMeetingSummary(
+            var summary = new SavedMeetingSummary(
                 folderName,
                 dir,
                 Path.Combine(dir, LogFileName),
@@ -132,10 +132,73 @@ public static class MeetingStore
                 state.Entries.Count,
                 hasConvId,
                 isScheduled,
-                hasSummary));
+                hasSummary,
+                state.IsHandedOver);
+            items.Add((summary, !string.IsNullOrWhiteSpace(state.InitialSummary)));
         }
 
-        return result.OrderByDescending(m => m.StartedAt).ThenByDescending(m => m.FolderName).ToList();
+        // 新しい順に並べてから、引き継ぎ元になっている旧世代を判定する
+        var ordered = items
+            .OrderByDescending(x => x.Summary.StartedAt)
+            .ThenByDescending(x => x.Summary.FolderName)
+            .ToList();
+
+        var handedOverBases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<SavedMeetingSummary>(ordered.Count);
+        foreach (var (item, hasInitialSummary) in ordered)
+        {
+            var baseName = ExtractBaseRoomName(item.MeetingName, out var hasDateSuffix);
+            var isHandedOver = item.IsHandedOver
+                || (baseName.Length > 0 && handedOverBases.Contains(baseName));
+            result.Add(isHandedOver == item.IsHandedOver ? item : item with { IsHandedOver = true });
+
+            if (hasInitialSummary && hasDateSuffix && baseName.Length > 0)
+                handedOverBases.Add(baseName);
+        }
+
+        return result;
+    }
+
+    /// <summary>会議を「別の新しい会議へ要約を引き継ぎ済み」として記録する。</summary>
+    /// <param name="folderPath">元の会議フォルダのパス</param>
+    public static void MarkHandedOver(string? folderPath)
+    {
+        if (string.IsNullOrWhiteSpace(folderPath) || !Directory.Exists(folderPath)) return;
+        var statePath = Path.Combine(folderPath, StateFileName);
+        if (!File.Exists(statePath)) return;
+        var state = LoadState(folderPath);
+        if (state.IsHandedOver) return;
+        SaveState(statePath, state with { IsHandedOver = true });
+    }
+
+    /// <summary>検索用に会議フォルダ内のテキスト(会議名・要約・ログ)をまとめて読み取る。</summary>
+    /// <param name="item">過去の会議サマリー</param>
+    /// <returns>検索対象テキスト</returns>
+    public static string ReadSearchableText(SavedMeetingSummary item)
+    {
+        var sb = new System.Text.StringBuilder();
+        if (!string.IsNullOrWhiteSpace(item.MeetingName)) sb.AppendLine(item.MeetingName);
+        if (!string.IsNullOrWhiteSpace(item.Title)) sb.AppendLine(item.Title);
+        var summaryPath = Path.Combine(item.FolderPath, SummaryFileName);
+        if (File.Exists(summaryPath))
+        {
+            try { sb.AppendLine(File.ReadAllText(summaryPath, Utf8)); } catch { }
+        }
+        if (File.Exists(item.LogPath))
+        {
+            try { sb.AppendLine(File.ReadAllText(item.LogPath, Utf8)); } catch { }
+        }
+        return sb.ToString();
+    }
+
+    private static string ExtractBaseRoomName(string meetingName, out bool hasDateSuffix)
+    {
+        hasDateSuffix = false;
+        if (string.IsNullOrWhiteSpace(meetingName)) return "";
+        var trimmed = meetingName.Trim();
+        var stripped = System.Text.RegularExpressions.Regex.Replace(trimmed, @"_\d{8}(?:_\d+)?$", "");
+        hasDateSuffix = stripped.Length != trimmed.Length && stripped.Length > 0;
+        return stripped.Length > 0 ? stripped : trimmed;
     }
 
     /// <summary>その会議が自動実行(スケジュール)によるものかを判定する。</summary>
@@ -247,6 +310,8 @@ public static class MeetingStore
         "Claude" or "クローディ" => Participants.ClaudeId,
         "Gemini" or "ジェミリー" => Participants.GeminiId,
         "ChatGPT" or "チャッピー" => Participants.ChappyId,
+        "Claude(agy)" or "クローディ(agy)" or "クローディ (agy)" or "Claude (agy)" => Participants.AgyClaudeId,
+        "ChatGPT(agy)" or "チャッピー(agy)" or "チャッピー (agy)" or "ChatGPT (agy)" => Participants.AgyChappyId,
         _ => Participants.UserId,
     };
 

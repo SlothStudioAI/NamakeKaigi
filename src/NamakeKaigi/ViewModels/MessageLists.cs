@@ -90,8 +90,8 @@ public sealed class MessageLists
 
     /// <summary>発言者の列(いない発言者ならnull)。</summary>
     private ObservableCollection<MessageViewModel>? Column(string agentId) =>
-        agentId == Participants.ClaudeId ? Claude
+        agentId is Participants.ClaudeId or Participants.AgyClaudeId ? Claude
         : agentId == Participants.GeminiId ? Gemini
-        : agentId == Participants.ChappyId ? Chappy
+        : agentId is Participants.ChappyId or Participants.AgyChappyId ? Chappy
         : null;
 }

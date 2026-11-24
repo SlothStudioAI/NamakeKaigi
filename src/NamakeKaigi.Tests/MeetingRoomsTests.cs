@@ -222,4 +222,32 @@ public class MeetingRoomsTests
         Assert.False(room1.HasUnreadReply);
         Assert.False(room1.HasUnreadBadge);
     }
+
+    [Fact]
+    public void 手動と自動実行の部屋上限は別枠で数えられ_互いに邪魔しない()
+    {
+        var sessions = new List<FakeSession>();
+        var rooms = new MeetingRooms(() =>
+        {
+            var s = new FakeSession();
+            sessions.Add(s);
+            return new MainViewModel(() => s);
+        }, maxRooms: 2, maxScheduledRooms: 2);
+
+        // 手動1部屋の状態で自動実行を2つ開いても、手動の追加枠は残る
+        Assert.NotNull(rooms.OpenScheduledRoom("自動1"));
+        Assert.NotNull(rooms.OpenScheduledRoom("自動2"));
+        Assert.True(rooms.CanAddRoom);
+
+        rooms.AddRoom();
+        Assert.False(rooms.CanAddRoom); // 手動が2部屋になったので上限
+
+        // 手動が上限でも、自動実行は古い自動実行部屋を閉じて新しく開ける
+        var s3 = rooms.OpenScheduledRoom("自動3");
+        Assert.NotNull(s3);
+        Assert.DoesNotContain(rooms.Items, r => r.RoomTitle == "自動1");
+        Assert.Contains(rooms.Items, r => r.RoomTitle == "自動2");
+        Assert.Contains(rooms.Items, r => r.RoomTitle == "自動3");
+        Assert.Equal(2, rooms.Items.Count(r => !r.IsScheduledRoom));
+    }
 }

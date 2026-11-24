@@ -108,22 +108,46 @@ public sealed class AgyAgent : IChatAgent
     private TimeSpan _timeout;
     private volatile string _model;
     private volatile string _effort;
+    private readonly string _id;
+    private readonly string _name;
+    private readonly Func<string, bool>? _modelFilter;
 
     /// <summary>Gemini用のAIを作る。</summary>
     /// <param name="settings">agyの設定</param>
     /// <param name="runner">プロセス実行</param>
     /// <param name="workDir">作業フォルダ</param>
     /// <param name="timeout">タイムアウト</param>
-    public AgyAgent(AgySettings settings, IProcessRunner runner, string workDir, TimeSpan timeout)
+    /// <param name="id">参加者識別名(既定はgemini)</param>
+    /// <param name="name">ログ等の表示名(既定はGemini)</param>
+    /// <param name="initialModel">初期モデルID(省略時はsettings.Model)</param>
+    /// <param name="modelFilter">選べるモデルの絞り込み条件(省略時は全モデル)</param>
+    public AgyAgent(AgySettings settings, IProcessRunner runner, string workDir, TimeSpan timeout,
+        string id = Participants.GeminiId, string name = "Gemini", string? initialModel = null,
+        Func<string, bool>? modelFilter = null)
     {
         _settings = settings;
         _runner = runner;
         _workDir = workDir;
         _timeout = timeout;
-        _model = settings.Model?.Trim() ?? "";
-        _effort = settings.Effort?.Trim() ?? "";
+        _id = id;
+        _name = name;
+        _modelFilter = modelFilter;
+        _model = (initialModel ?? settings.Model)?.Trim() ?? "";
+        _effort = initialModel is null ? (settings.Effort?.Trim() ?? "") : "";
         _kept = new KeptCli(runner);
     }
+
+    /// <summary>Gemini系モデルか(Claude系・GPT系を除外する)。</summary>
+    public static bool IsGeminiModel(string modelId) =>
+        !IsClaudeModel(modelId) && !IsGptModel(modelId);
+
+    /// <summary>agyで扱うClaude系モデルか。</summary>
+    public static bool IsClaudeModel(string modelId) =>
+        modelId.StartsWith("claude-", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>agyで扱うGPT系モデルか。</summary>
+    public static bool IsGptModel(string modelId) =>
+        modelId.StartsWith("gpt-", StringComparison.OrdinalIgnoreCase);
 
     private readonly KeptCli _kept;
 
@@ -177,10 +201,10 @@ public sealed class AgyAgent : IChatAgent
     public string FullWarning => _settings.FullWarning ?? "";
 
     /// <inheritdoc />
-    public string Id => Participants.GeminiId;
+    public string Id => _id;
 
     /// <inheritdoc />
-    public string Name => "Gemini";
+    public string Name => _name;
 
     /// <inheritdoc />
     public string ModelId => _model;
@@ -210,11 +234,17 @@ public sealed class AgyAgent : IChatAgent
         get
         {
             var cached = ModelListCache.Load(ModelCachePath);
-            if (cached.Count > 0) return WithCurrent(cached.ToList());
-            return (_settings.Models ?? Array.Empty<string>()).Append(_model)
+            if (cached.Count > 0) return WithCurrent(FilterOptions(cached).ToList());
+            var fallback = (_settings.Models ?? Array.Empty<string>())
+                .Where(m => m.Length > 0 && (_modelFilter is null || _modelFilter(m)))
+                .Append(_model)
                 .Where(m => m.Length > 0).Distinct().Select(m => new ModelOption(m, m)).ToList();
+            return fallback;
         }
     }
+
+    private IEnumerable<ModelOption> FilterOptions(IEnumerable<ModelOption> options) =>
+        _modelFilter is null ? options : options.Where(o => _modelFilter(o.Id));
 
     /// <summary>一覧に、いま選んでいるモデルがなければ足す。</summary>
     private List<ModelOption> WithCurrent(List<ModelOption> options)
@@ -243,7 +273,7 @@ public sealed class AgyAgent : IChatAgent
         }
         if (found.Count == 0) return ModelOptions;
         ModelListCache.Save(ModelCachePath, found); // 次の起動と、取れなかったときのために残す
-        return WithCurrent(found);
+        return WithCurrent(FilterOptions(found).ToList());
     }
 
     /// <inheritdoc />

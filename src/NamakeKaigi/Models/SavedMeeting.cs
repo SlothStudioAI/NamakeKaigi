@@ -32,6 +32,9 @@ public sealed record MeetingState
 
     /// <summary>自動実行(スケジュール)で開かれた会議かどうか。</summary>
     public bool IsScheduled { get; init; }
+
+    /// <summary>別の新しい会議へ要約を引き継ぎ済みかどうか。</summary>
+    public bool IsHandedOver { get; init; }
 }
 
 /// <summary>「過去の会議を開く」一覧に出す1件分の要約。</summary>
@@ -44,6 +47,7 @@ public sealed record MeetingState
 /// <param name="HasConversationId">CLIの会話IDが保存されているか(なければlog.mdから再開)</param>
 /// <param name="IsScheduled">自動実行(スケジュール)で開かれた会議か</param>
 /// <param name="HasSummary">summary.md がすでに作成されているか</param>
+/// <param name="IsHandedOver">別の新しい会議へ要約を引き継ぎ済みか</param>
 public sealed record SavedMeetingSummary(
     string FolderName,
     string FolderPath,
@@ -53,7 +57,8 @@ public sealed record SavedMeetingSummary(
     int MessageCount,
     bool HasConversationId,
     bool IsScheduled = false,
-    bool HasSummary = false)
+    bool HasSummary = false,
+    bool IsHandedOver = false)
 {
     /// <summary>会議の名前(会議室の名前)。新しい形式のフォルダ(起動時刻/会議名)から取る。古い形式は名前がないので空。</summary>
     public string MeetingName

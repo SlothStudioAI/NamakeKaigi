@@ -240,6 +240,30 @@
         </Setter>
     </Style>
 
+    <!-- サイドバー内ポップアップ等のメニュー項目ボタン(任意のContentを描画し、ホバー時に背景が出る) -->
+    <Style x:Key="SidebarMenuItemButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource SidebarTextBrush}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="Transparent" CornerRadius="{StaticResource CornerRadiusSmall}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource SidebarHoverBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- サイドバー下のメニューボタン(アイコン＋文字。ふだんは透明、マウスを乗せると背景が出る)
          アイコンは Tag にアイコンフォントの文字を入れる(例: Tag="&#xE716;") -->
     <Style x:Key="SidebarNavButton" TargetType="Button">

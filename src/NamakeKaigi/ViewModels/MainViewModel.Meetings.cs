@@ -99,6 +99,7 @@ public sealed partial class MainViewModel
         RaiseWorkDirChanged();
         ApplyMeetingTitle(reopened, nextRoomTitle);
         RefreshContextMetrics();
+        CloseChatSearch();
     }
 
     /// <summary>

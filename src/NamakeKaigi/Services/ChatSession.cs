@@ -25,6 +25,7 @@ public sealed class ChatSession : IChatSession
     private readonly List<CancellationTokenSource> _activeCts = new();
     private readonly string? _initialSummary;
     private readonly HashSet<string> _summaryInjected = new();
+    private readonly HashSet<string> _stoppedAgents = new();
     private readonly Dictionary<string, (string ConvId, int Count)> _consecutiveErrors = new();
     private readonly string? _geminiBrainDir;
     private bool _isScheduled;
@@ -226,28 +227,33 @@ public sealed class ChatSession : IChatSession
     }
 
     /// <inheritdoc />
-    public bool CanWrite(string agentId) => _agents[agentId].CanWrite;
+    public bool CanWrite(string agentId) => _agents.TryGetValue(agentId, out var a) && a.CanWrite;
 
     /// <inheritdoc />
     public void SetWriter(string agentId, bool isWriter)
     {
-        _agents[agentId].WriteMode = isWriter;
+        if (!_agents.TryGetValue(agentId, out var a)) return;
+        a.WriteMode = isWriter;
         SaveState();
     }
 
     /// <inheritdoc />
-    public bool CanRunCommands(string agentId) => _agents[agentId].CanRunCommands;
+    public bool CanRunCommands(string agentId) => _agents.TryGetValue(agentId, out var a) && a.CanRunCommands;
 
     /// <inheritdoc />
-    public void SetCommands(string agentId, bool enabled) => _agents[agentId].CommandMode = enabled;
+    public void SetCommands(string agentId, bool enabled)
+    {
+        if (_agents.TryGetValue(agentId, out var a)) a.CommandMode = enabled;
+    }
 
     /// <inheritdoc />
-    public bool CanFull(string agentId) => _agents[agentId].CanFull;
+    public bool CanFull(string agentId) => _agents.TryGetValue(agentId, out var a) && a.CanFull;
 
     /// <inheritdoc />
     public void SetFull(string agentId, bool enabled)
     {
-        _agents[agentId].FullMode = enabled;
+        if (!_agents.TryGetValue(agentId, out var a)) return;
+        a.FullMode = enabled;
         SaveState();
     }
 
@@ -280,24 +286,24 @@ public sealed class ChatSession : IChatSession
     /// <inheritdoc />
     public void UpdateAgySettings(AgySettings settings)
     {
-        if (_agents.TryGetValue(Participants.GeminiId, out var a) && a is AgyAgent g)
-            g.UpdateSettings(settings);
+        foreach (var agy in _agents.Values.OfType<AgyAgent>())
+            agy.UpdateSettings(settings);
         _onAgyHarnessChanged?.Invoke(settings);
     }
 
     /// <inheritdoc />
-    public string WriterWarning(string agentId) => _agents[agentId].WriterWarning;
+    public string WriterWarning(string agentId) => _agents.TryGetValue(agentId, out var a) ? a.WriterWarning : "";
 
     /// <inheritdoc />
-    public string FullWarning(string agentId) => _agents[agentId].FullWarning;
+    public string FullWarning(string agentId) => _agents.TryGetValue(agentId, out var a) ? a.FullWarning : "";
 
     /// <inheritdoc />
-    public string ModelIdOf(string agentId) => _agents[agentId].ModelId;
+    public string ModelIdOf(string agentId) => _agents.TryGetValue(agentId, out var a) ? a.ModelId : "";
 
     /// <inheritdoc />
     public void SetModel(string agentId, string modelId)
     {
-        var agent = _agents[agentId];
+        if (!_agents.TryGetValue(agentId, out var agent)) return;
         agent.SetModel(modelId);
         _onModelOrEffortChanged?.Invoke(agentId, agent.ModelId, agent.EffortId);
         SaveState();
@@ -306,7 +312,8 @@ public sealed class ChatSession : IChatSession
     /// <inheritdoc />
     public void SetModelForThisMeeting(string agentId, string modelId)
     {
-        _agents[agentId].SetModel(modelId); // 保存の知らせ(_onModelOrEffortChanged)は呼ばない
+        if (!_agents.TryGetValue(agentId, out var agent)) return;
+        agent.SetModel(modelId); // 保存の知らせ(_onModelOrEffortChanged)は呼ばない
         SaveState();
     }
 
@@ -329,11 +336,13 @@ public sealed class ChatSession : IChatSession
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<ModelOption> ModelOptionsFor(string agentId) => _agents[agentId].ModelOptions;
+    public IReadOnlyList<ModelOption> ModelOptionsFor(string agentId) =>
+        _agents.TryGetValue(agentId, out var a) ? a.ModelOptions : Array.Empty<ModelOption>();
 
     /// <inheritdoc />
     public Task<IReadOnlyList<ModelOption>> LoadModelOptionsAsync(string agentId) =>
-        _agents[agentId].LoadModelOptionsAsync(CancellationToken.None);
+        _agents.TryGetValue(agentId, out var a) ? a.LoadModelOptionsAsync(CancellationToken.None)
+        : Task.FromResult<IReadOnlyList<ModelOption>>(Array.Empty<ModelOption>());
 
     /// <inheritdoc />
     public void CancelPending()
@@ -422,6 +431,16 @@ public sealed class ChatSession : IChatSession
         var answered = await AskOneAsync(firstId, notify, ct, extraDirs: extraDirs);
         if (!answered)
         {
+            if (ct.IsCancellationRequested)
+            {
+                // 1人目の途中で停止されたとき、2人目以降も今回の発言を次回蒸し返さないよう既読に進める
+                foreach (var id in followers)
+                {
+                    var (_, upTo) = _transcript.PeekUnseen(id, _maxInjectChars);
+                    _transcript.MarkSeen(id, upTo);
+                }
+                SaveState();
+            }
             var reason = ct.IsCancellationRequested
                 ? "回答を停止しました。"
                 : $"{_agents[firstId].Name}が答えられなかったので、聞きませんでした。";
@@ -485,6 +504,10 @@ public sealed class ChatSession : IChatSession
         }
         catch (OperationCanceledException)
         {
+            // 順番待ち中に停止された場合も、待っていた発言を次回勝手に実行しないよう既読に進める
+            var (_, skippedUpTo) = _transcript.PeekUnseen(id, _maxInjectChars);
+            _transcript.MarkSeen(id, skippedUpTo);
+            SaveState();
             notify(new ChatProgress(id, ChatProgressKind.Error, "回答を停止しました。"));
             return false;
         }
@@ -492,6 +515,7 @@ public sealed class ChatSession : IChatSession
         queueMs = timer.ElapsedMilliseconds;
         agent.SetExtraDirs(extraDirs ?? Array.Empty<string>());
 
+        var upTo = 0;
         try
         {
             var existingConvId = _conversationIds.GetValueOrDefault(id);
@@ -500,8 +524,10 @@ public sealed class ChatSession : IChatSession
                                 && !_summaryInjected.Contains(id)
                 ? _initialSummary
                 : null;
-            var (unseen, upTo) = _transcript.PeekUnseen(id, _maxInjectChars);
-            var prompt = PromptComposer.Compose(unseen, agent.Name, relayNote, injectSummary);
+            var stoppedLastTurn = _stoppedAgents.Contains(id);
+            string unseen;
+            (unseen, upTo) = _transcript.PeekUnseen(id, _maxInjectChars);
+            var prompt = PromptComposer.Compose(unseen, agent.Name, relayNote, injectSummary, stoppedLastTurn);
             AgentReply reply;
             try
             {
@@ -516,7 +542,7 @@ public sealed class ChatSession : IChatSession
                 _transcript.ResetSeen(id);
                 injectSummary ??= !_summaryInjected.Contains(id) ? _initialSummary : null;
                 (unseen, upTo) = _transcript.PeekUnseen(id, _maxInjectChars);
-                prompt = PromptComposer.Compose(unseen, agent.Name, relayNote, injectSummary);
+                prompt = PromptComposer.Compose(unseen, agent.Name, relayNote, injectSummary, stoppedLastTurn);
                 reply = await agent.AskAsync(prompt, null, OnUpdate, ct);
             }
 
@@ -525,6 +551,7 @@ public sealed class ChatSession : IChatSession
             replyChars = reply.Text.Length;
             if (!string.IsNullOrEmpty(reply.ConversationId)) _conversationIds[id] = reply.ConversationId;
             if (injectSummary is not null) _summaryInjected.Add(id);
+            _stoppedAgents.Remove(id);
             _transcript.MarkSeen(id, upTo);
             Record(id, reply.Text);
             if (!string.IsNullOrEmpty(reply.Model)) notify(new ChatProgress(id, ChatProgressKind.Model, reply.Model));
@@ -536,6 +563,10 @@ public sealed class ChatSession : IChatSession
         catch (OperationCanceledException)
         {
             outcome = "stopped";
+            // 停止された発言を次回また未読として蒸し返さないよう既読に進め、次回に「直前は停止された」と添える
+            if (upTo > 0) _transcript.MarkSeen(id, upTo);
+            _stoppedAgents.Add(id);
+            SaveState();
             notify(new ChatProgress(id, ChatProgressKind.Error, "回答を停止しました。"));
             return false;
         }

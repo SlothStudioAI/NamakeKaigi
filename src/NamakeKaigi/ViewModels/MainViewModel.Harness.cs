@@ -52,10 +52,13 @@ public sealed partial class MainViewModel
     public void UpdateAgyHarness(AgySettings settings)
     {
         _session.UpdateAgySettings(settings);
-        GeminiMember.CanWrite = _session.CanWrite(Participants.GeminiId);
-        GeminiMember.WriterWarning = _session.WriterWarning(Participants.GeminiId);
-        GeminiMember.FullWarning = _session.FullWarning(Participants.GeminiId);
-        GeminiMember.CanFull = _session.CanFull(Participants.GeminiId);
+        foreach (var m in new[] { GeminiMember, AgyClaudeMember, AgyChappyMember })
+        {
+            m.CanWrite = _session.CanWrite(m.Participant.Id);
+            m.WriterWarning = _session.WriterWarning(m.Participant.Id);
+            m.FullWarning = _session.FullWarning(m.Participant.Id);
+            m.CanFull = _session.CanFull(m.Participant.Id);
+        }
         RefreshHarnessTooltips();
     }
 

@@ -35,6 +35,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Text="配色テーマ" VerticalAlignment="Center" Margin="0,6"/>
@@ -106,6 +107,17 @@
                               IsEnabled="{Binding CanChooseSummaryModel}"
                               ToolTip="要約に使うモデルを選びます（自動＝最軽量モデル）"/>
                 </Grid>
+            </StackPanel>
+
+            <TextBlock Grid.Row="7" Text="初期メンバー" VerticalAlignment="Center" Margin="0,6"/>
+            <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal" Margin="0,6"
+                        ToolTip="起動時や新しい会議で、左の欄に最初から並べるメンバーを選びます(最低1人。外したメンバーも「＋ メンバー追加」から呼べます)">
+                <CheckBox Content="Claude" IsChecked="{Binding DefaultClaude}" IsEnabled="{Binding DefaultClaudeInstalled}"
+                          Foreground="{DynamicResource SidebarTextBrush}" Margin="0,0,12,0" FontSize="12"/>
+                <CheckBox Content="Gemini" IsChecked="{Binding DefaultGemini}" IsEnabled="{Binding DefaultGeminiInstalled}"
+                          Foreground="{DynamicResource SidebarTextBrush}" Margin="0,0,12,0" FontSize="12"/>
+                <CheckBox Content="ChatGPT" IsChecked="{Binding DefaultChappy}" IsEnabled="{Binding DefaultChappyInstalled}"
+                          Foreground="{DynamicResource SidebarTextBrush}" FontSize="12"/>
             </StackPanel>
         </Grid>
 

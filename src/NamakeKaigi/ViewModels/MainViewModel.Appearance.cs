@@ -84,6 +84,12 @@ public sealed partial class MainViewModel
     /// <summary>宛先のボタンに出す、チャッピーの名前。</summary>
     public string ChappyDisplayName => ChappyMember.DisplayName;
 
+    /// <summary>宛先のボタンに出す、クローディ(agy)の名前。</summary>
+    public string AgyClaudeDisplayName => AgyClaudeMember.DisplayName;
+
+    /// <summary>宛先のボタンに出す、チャッピー(agy)の名前。</summary>
+    public string AgyChappyDisplayName => AgyChappyMember.DisplayName;
+
     /// <summary>簡易表示モードや表示名の設定を更新し、画面全体と settings.json に反映する。</summary>
     public void UpdateAppearance(AppearanceSettings appearance)
     {
@@ -102,6 +108,8 @@ public sealed partial class MainViewModel
         Raise(nameof(ClaudeDisplayName));
         Raise(nameof(GeminiDisplayName));
         Raise(nameof(ChappyDisplayName));
+        Raise(nameof(AgyClaudeDisplayName));
+        Raise(nameof(AgyChappyDisplayName));
         Raise(nameof(SelectedSummaryAgentId));
         RefreshAllOrderChoice();
         Raise(nameof(LogPathDisplay));

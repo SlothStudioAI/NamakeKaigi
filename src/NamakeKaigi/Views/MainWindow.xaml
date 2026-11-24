@@ -242,7 +242,9 @@
                     <!-- アプリ名の見出しは置かない(名前はタイトルバーとタスクバーに出す。メンバーのカードを上に詰めるため) -->
                     <TextBlock DockPanel.Dock="Top" Text="MEMBERS" Foreground="{DynamicResource SidebarMutedTextBrush}"
                                FontSize="11" FontWeight="SemiBold" Margin="4,0,0,8"/>
-                    <ItemsControl ItemsSource="{Binding Members}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                    <ItemsControl ItemsSource="{Binding SidebarMembers}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Border x:Name="card" Background="{DynamicResource SidebarHoverBrush}" Margin="0,0,0,8" Padding="10"
@@ -258,17 +260,33 @@
                                             <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
                                         <Grid Width="42" Height="42" VerticalAlignment="Top">
-                                            <Ellipse Width="42" Height="42"
+                                            <Ellipse x:Name="avatarCircle" Width="42" Height="42"
                                                      Visibility="{Binding ShowImageAvatar, Converter={StaticResource BoolToVisibility}}">
                                                 <Ellipse.Fill>
                                                     <ImageBrush ImageSource="{Binding AvatarUri}" Stretch="UniformToFill"/>
                                                 </Ellipse.Fill>
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HasBadge}" Value="True">
+                                                                <Setter Property="Stroke" Value="#38BDF8"/>
+                                                                <Setter Property="StrokeThickness" Value="2"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
                                             </Ellipse>
                                             <Border Width="42" Height="42" CornerRadius="21"
                                                     Background="{DynamicResource SidebarLogoBrush}"
                                                     Visibility="{Binding ShowInitialAvatar, Converter={StaticResource BoolToVisibility}}">
                                                 <TextBlock Text="{Binding InitialText}" Foreground="White" FontWeight="Bold" FontSize="16"
                                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                    Background="#0284C7" BorderBrush="#E0F2FE" BorderThickness="1"
+                                                    CornerRadius="6" Padding="4,1" Margin="0,0,-2,-2"
+                                                    Visibility="{Binding HasBadge, Converter={StaticResource BoolToVisibility}}">
+                                                <TextBlock Text="{Binding BadgeText}" Foreground="White" FontSize="9" FontWeight="Bold"/>
                                             </Border>
                                         </Grid>
                                         <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
@@ -411,6 +429,10 @@
                                     <DataTrigger Binding="{Binding IsInstalled}" Value="False">
                                         <Setter TargetName="card" Property="Visibility" Value="Collapsed"/>
                                     </DataTrigger>
+                                    <!-- デフォルト外・未追加のメンバーは出さない(「＋ メンバー追加」で後から足せる) -->
+                                    <DataTrigger Binding="{Binding IsInRoom}" Value="False">
+                                        <Setter TargetName="card" Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
                                     <!-- 任せる段階を、カードの色で見分けられるようにする(読むだけ=そのまま / 一部できる=黄 / 何でもできる=赤。何でもできるが優先) -->
                                     <DataTrigger Binding="{Binding IsWriter}" Value="True">
                                         <Setter TargetName="card" Property="Background" Value="#55E0A030"/>
@@ -444,6 +466,39 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <Grid Margin="0,2,0,4" Visibility="{Binding CanAddMember, Converter={StaticResource BoolToVisibility}}">
+                        <Button x:Name="AddMemberButton" Content="＋ メンバー追加" HorizontalAlignment="Stretch"
+                                Style="{StaticResource SidebarLinkButton}" Padding="8,6" FontSize="12"
+                                Click="OnToggleAddMemberPopup"
+                                ToolTip="agy経由のクローディ/チャッピーや、初期表示から外したメンバーをこの会議に追加します(会議開始前のみ)"/>
+                        <Popup x:Name="AddMemberPopup"
+                               StaysOpen="False" PlacementTarget="{Binding ElementName=AddMemberButton}" Placement="Bottom"
+                               AllowsTransparency="True" PopupAnimation="Fade">
+                            <Border Background="{DynamicResource SidebarBackgroundBrush}"
+                                    BorderBrush="{DynamicResource InputBorderBrush}"
+                                    BorderThickness="1" CornerRadius="{StaticResource CornerRadiusSmall}"
+                                    Padding="6" Margin="0,4,0,0" MinWidth="200">
+                                <ItemsControl ItemsSource="{Binding AddableMembers}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Click="OnAddMemberClick" Style="{StaticResource SidebarMenuItemButton}"
+                                                    HorizontalAlignment="Stretch" Margin="0,1">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource SidebarTextBrush}"/>
+                                                    <TextBlock Text="{Binding Participant.SubTitle, StringFormat=' ({0})'}"
+                                                               FontSize="11" Foreground="{DynamicResource SidebarMutedTextBrush}"
+                                                               VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                    </StackPanel>
+                    </ScrollViewer>
                 </DockPanel>
             </Border>
 
@@ -483,6 +538,9 @@
                                 </ContextMenu>
                             </Button.ContextMenu>
                         </Button>
+                        <Button x:Name="SearchChatButton" Content="&#xE721;" Click="OnOpenChatSearch"
+                                Style="{StaticResource HeaderIconButton}" Margin="6,0,0,0"
+                                ToolTip="この会議の中を検索します (Ctrl+F)"/>
                         <!-- 作業フォルダ(ここでAIがファイルを読み書きする)。変更すると、次の発言から効く -->
                         <Button x:Name="WorkDirButton" Content="{Binding WorkDirName}" Click="OnChooseWorkDir"
                                 Margin="8,0,0,0">
@@ -593,6 +651,33 @@
                     </Border>
                 </Grid>
 
+                <!-- 会議内検索バー (Ctrl+F) -->
+                <Border x:Name="ChatSearchBar" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Right"
+                        Margin="0,8,28,0" Padding="8,6"
+                        Background="{DynamicResource PanelBackgroundBrush}"
+                        BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource CornerRadiusMedium}"
+                        Visibility="{Binding IsChatSearchOpen, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBox x:Name="ChatSearchBox" Width="210" Padding="6,4" FontSize="12.5"
+                                 Background="{DynamicResource PanelInsetBrush}"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1"
+                                 Text="{Binding ChatSearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                                 PreviewKeyDown="OnChatSearchBoxPreviewKeyDown"
+                                 ToolTip="キーワードを入力（Enter: 次へ / Shift+Enter: 前へ / Esc: 閉じる）"/>
+                        <TextBlock Text="{Binding ChatSearchStatus}" MinWidth="42" Margin="8,0,4,0"
+                                   VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"
+                                   FontSize="12" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <Button Content="▲" Command="{Binding PrevSearchCommand}" Padding="6,3" Margin="2,0"
+                                Style="{StaticResource LinkButton}" ToolTip="前のヒットへ (Shift+Enter)"/>
+                        <Button Content="▼" Command="{Binding NextSearchCommand}" Padding="6,3" Margin="2,0"
+                                Style="{StaticResource LinkButton}" ToolTip="次のヒットへ (Enter)"/>
+                        <Button Content="×" Command="{Binding CloseSearchCommand}" Padding="6,3" Margin="4,0,0,0"
+                                Style="{StaticResource LinkButton}" ToolTip="閉じる (Esc)"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- 入力欄(ファイル・フォルダのドラッグ&ドロップに対応) -->
                 <Border x:Name="InputAreaBorder" Grid.Row="2" Background="{DynamicResource PanelBackgroundBrush}" BorderThickness="0,1,0,0"
                         BorderBrush="{DynamicResource PanelBorderBrush}" Padding="28,12,28,16" Margin="0,12,0,0"
@@ -612,6 +697,14 @@
                                          IsChecked="{Binding TargetChappy}"
                                          Visibility="{Binding ChappyPresent, Converter={StaticResource BoolToVisibility}}"
                                          ToolTip="ChatGPT (Codex)。「全員」のときは、同時でも「〇〇が先」でも答えます"/>
+                            <RadioButton GroupName="target" Content="{Binding AgyClaudeDisplayName}" Style="{StaticResource TargetPill}"
+                                         IsChecked="{Binding TargetAgyClaude}"
+                                         Visibility="{Binding AgyClaudePresent, Converter={StaticResource BoolToVisibility}}"
+                                         ToolTip="agy経由のClaudeモデル"/>
+                            <RadioButton GroupName="target" Content="{Binding AgyChappyDisplayName}" Style="{StaticResource TargetPill}"
+                                         IsChecked="{Binding TargetAgyChappy}"
+                                         Visibility="{Binding AgyChappyPresent, Converter={StaticResource BoolToVisibility}}"
+                                         ToolTip="agy経由のGPTモデル"/>
                             <RadioButton GroupName="target" Content="全員" Style="{StaticResource TargetPill}"
                                          IsChecked="{Binding TargetEveryone}"
                                          Visibility="{Binding ShowEveryoneTarget, Converter={StaticResource BoolToVisibility}}"/>

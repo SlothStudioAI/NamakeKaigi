@@ -1154,4 +1154,108 @@ public class UsageAndMeetingStoreTests
         Assert.Equal("設計AI", loadedWithAppearance.Appearance.ClaudeName);
         Assert.Equal("査読AI", loadedWithAppearance.Appearance.GeminiName);
     }
+
+    [Fact]
+    public void 引き継ぎ済みの古い会議は1世代のみ表示し_20件超や旧世代はもっと見るで出せる()
+    {
+        using var dir = new TempDir();
+        var oldDir = Path.Combine(dir.Path, "20261119_100000", "開発");
+        var midDir = Path.Combine(dir.Path, "20261120_100000", "開発_20261120");
+        var latestDir = Path.Combine(dir.Path, "20261121_100000", "開発_20261121");
+        MeetingStore.SaveState(Path.Combine(oldDir, MeetingStore.StateFileName), new MeetingState
+        {
+            StartedAt = new DateTime(2026, 11, 19, 10, 0, 0),
+            Entries = [new ChatEntry(Participants.UserId, "1日目", new DateTime(2026, 11, 19, 10, 0, 0))],
+        });
+        MeetingStore.SaveState(Path.Combine(midDir, MeetingStore.StateFileName), new MeetingState
+        {
+            StartedAt = new DateTime(2026, 11, 20, 10, 0, 0),
+            InitialSummary = "1日目の要約",
+            Entries = [new ChatEntry(Participants.UserId, "2日目", new DateTime(2026, 11, 20, 10, 0, 0))],
+        });
+        MeetingStore.SaveState(Path.Combine(latestDir, MeetingStore.StateFileName), new MeetingState
+        {
+            StartedAt = new DateTime(2026, 11, 21, 10, 0, 0),
+            InitialSummary = "2日目の要約",
+            Entries = [new ChatEntry(Participants.UserId, "3日目", new DateTime(2026, 11, 21, 10, 0, 0))],
+        });
+
+        // 明示的な引き継ぎマークも動作する
+        var standaloneOld = Path.Combine(dir.Path, "20261118_100000", "単発");
+        MeetingStore.SaveState(Path.Combine(standaloneOld, MeetingStore.StateFileName), new MeetingState
+        {
+            StartedAt = new DateTime(2026, 11, 18, 10, 0, 0),
+            Entries = [new ChatEntry(Participants.UserId, "単発", new DateTime(2026, 11, 18, 10, 0, 0))],
+        });
+        MeetingStore.MarkHandedOver(standaloneOld);
+
+        var listed = MeetingStore.ListMeetings(dir.Path);
+        Assert.Equal(4, listed.Count);
+        Assert.False(listed[0].IsHandedOver); // 開発_20261121 (最新)
+        Assert.True(listed[1].IsHandedOver);  // 開発_20261120 (旧世代)
+        Assert.True(listed[2].IsHandedOver);  // 開発 (旧世代)
+        Assert.True(listed[3].IsHandedOver);  // 単発 (明示マーク)
+
+        // 60件（うち2件引き継ぎ済み）を作ったときの表示フィルタ確認
+        var many = Enumerable.Range(1, 60)
+            .Select(i => new SavedMeetingSummary(
+                $"20261121_0000{i:00}/会議{i}",
+                $"C:/m/{i}",
+                $"C:/m/{i}/log.md",
+                new DateTime(2026, 11, 21).AddMinutes(-i),
+                $"タイトル{i}",
+                3,
+                true,
+                IsHandedOver: i <= 2))
+            .ToList();
+
+        var (visible, hidden) = NamakeKaigi.Views.PastMeetingsWindow.FilterForDisplay(many, hideScheduled: true, showAll: false);
+        Assert.Equal(20, visible.Count);
+        Assert.All(visible, m => Assert.False(m.IsHandedOver));
+        Assert.Equal(40, hidden);
+
+        var (allVisible, allHidden) = NamakeKaigi.Views.PastMeetingsWindow.FilterForDisplay(many, hideScheduled: true, showAll: true);
+        Assert.Equal(60, allVisible.Count);
+        Assert.Equal(0, allHidden);
+
+        // 検索時は20件制限や旧世代(IsHandedOver)を超えてヒットし、AND検索できる
+        File.WriteAllText(Path.Combine(oldDir, MeetingStore.SummaryFileName), "認証バグの調査要約");
+        var reloaded = MeetingStore.ListMeetings(dir.Path);
+        var (searched, searchHidden) = NamakeKaigi.Views.PastMeetingsWindow.FilterForDisplay(
+            reloaded, hideScheduled: true, showAll: false, query: "開発 認証バグ");
+        Assert.Single(searched);
+        Assert.Equal(oldDir, searched[0].FolderPath);
+        Assert.Equal(0, searchHidden);
+    }
+
+    [Fact]
+    public void AgyAgentのモデルフィルタでGeminiとClaudeとGPTが正しく分離される()
+    {
+        var settings = new AgySettings("agy.exe", Array.Empty<string>(), "",
+            Model: "gemini-4-hydrogen-medium",
+            Models: new[] { "gemini-4-hydrogen-medium", "claude-sonnet-5-5-medium", "gpt-oss-120b-medium" });
+        var runner = new FakeRunner();
+
+        var gemini = new AgyAgent(settings, runner, "C:/work", TimeSpan.FromSeconds(10), modelFilter: AgyAgent.IsGeminiModel);
+        var agyClaude = new AgyAgent(settings, runner, "C:/work", TimeSpan.FromSeconds(10),
+            id: Participants.AgyClaudeId, name: "Claude(agy)", initialModel: "claude-sonnet-5-5-medium", modelFilter: AgyAgent.IsClaudeModel);
+        var agyChappy = new AgyAgent(settings, runner, "C:/work", TimeSpan.FromSeconds(10),
+            id: Participants.AgyChappyId, name: "ChatGPT(agy)", initialModel: "gpt-oss-120b-medium", modelFilter: AgyAgent.IsGptModel);
+
+        Assert.Equal(new[] { "gemini-4-hydrogen-medium" }, gemini.ModelOptions.Select(o => o.Id));
+        Assert.Equal(new[] { "claude-sonnet-5-5-medium" }, agyClaude.ModelOptions.Select(o => o.Id));
+        Assert.Equal(new[] { "gpt-oss-120b-medium" }, agyChappy.ModelOptions.Select(o => o.Id));
+    }
+
+    [Fact]
+    public void CallParserとMeetingStoreがagy経由メンバーを認識できる()
+    {
+        var parsed = CallParser.Parse("クローディ(agy)、確認して", CallNameSettings.Default);
+        Assert.Equal(Participants.AgyClaudeId, parsed.TargetKey);
+        Assert.Equal("確認して", parsed.Body);
+
+        var parsed2 = CallParser.Parse("agyチャピ、案を出して", CallNameSettings.Default);
+        Assert.Equal(Participants.AgyChappyId, parsed2.TargetKey);
+        Assert.Equal("案を出して", parsed2.Body);
+    }
 }

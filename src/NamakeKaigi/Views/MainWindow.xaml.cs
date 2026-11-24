@@ -39,6 +39,7 @@ public partial class MainWindow : Window
         _scrollers = new[] { ChatList, ClaudeList, GeminiList, ChappyList }.Select(ScrollerOf).ToArray();
         CommandManager.AddPreviewExecutedHandler(Input, OnInputPreviewExecuted);
         Input.PreviewKeyDown += OnInputPreviewKeyDown;
+        PreviewKeyDown += OnWindowPreviewKeyDown;
         foreach (var scroller in Scrollers)
         {
             _pinnedToBottom[scroller] = true;
@@ -58,10 +59,12 @@ public partial class MainWindow : Window
             {
                 old.Messages.CollectionChanged -= OnMessagesChanged;
                 old.PropertyChanged -= OnRoomPropertyChanged;
+                old.ScrollToMessageRequested -= OnScrollToMessageRequested;
             }
             if (e.NewValue is not MainViewModel vm) return;
             vm.Messages.CollectionChanged += OnMessagesChanged;
             vm.PropertyChanged += OnRoomPropertyChanged;
+            vm.ScrollToMessageRequested += OnScrollToMessageRequested;
             UpdateSplitColumns(vm);
             // 切り替えた部屋も、一番下から見せる
             Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
@@ -134,7 +137,7 @@ public partial class MainWindow : Window
             var dlg = new HarnessWindow(current, vm.UpdateClaudeHarness, vm.LoadClaudeConnectorsAsync) { Owner = this };
             dlg.ShowDialog();
         }
-        else if (member.Participant.Id == Participants.GeminiId)
+        else if (member.Participant.Id is Participants.GeminiId or Participants.AgyClaudeId or Participants.AgyChappyId)
         {
             var current = vm.GetAgySettings();
             if (current is null) return;
@@ -146,6 +149,21 @@ public partial class MainWindow : Window
             var dlg = new HarnessWindow(new CodexSettings()) { Owner = this };
             dlg.ShowDialog();
         }
+    }
+
+    /// <summary>「＋ メンバー追加」ボタンが押されたとき、追加候補のポップアップを開閉する。</summary>
+    private void OnToggleAddMemberPopup(object sender, RoutedEventArgs e)
+    {
+        AddMemberPopup.IsOpen = !AddMemberPopup.IsOpen;
+    }
+
+    /// <summary>「＋ メンバー追加」の候補から1人が選ばれたとき、その会議に追加する。</summary>
+    private void OnAddMemberClick(object sender, RoutedEventArgs e)
+    {
+        AddMemberPopup.IsOpen = false;
+        if (DataContext is not MainViewModel vm) return;
+        if (sender is not FrameworkElement { DataContext: MemberViewModel member }) return;
+        vm.AddMemberToRoom(member.Participant.Id);
     }
 
     /// <summary>入力欄へファイル・フォルダがドラッグされてきたとき。TextBoxの既定動作より優先してコピー受け入れにする。</summary>
@@ -650,5 +668,97 @@ public partial class MainWindow : Window
         {
             foreach (var scroller in Scrollers) PinToBottom(scroller);
         }));
+    }
+
+    private void OnOpenChatSearch(object sender, RoutedEventArgs e) => OpenAndFocusChatSearch();
+
+    private void OpenAndFocusChatSearch()
+    {
+        if (DataContext is not MainViewModel vm) return;
+        vm.OpenChatSearch();
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+        {
+            ChatSearchBox.Focus();
+            ChatSearchBox.SelectAll();
+        }));
+    }
+
+    private void OnWindowPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        var key = e.Key == Key.ImeProcessed ? e.ImeProcessedKey : e.Key;
+        if (key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            e.Handled = true;
+            OpenAndFocusChatSearch();
+            return;
+        }
+        if (key == Key.Escape && DataContext is MainViewModel vm && vm.IsChatSearchOpen)
+        {
+            e.Handled = true;
+            vm.CloseChatSearch();
+            Input.Focus();
+        }
+    }
+
+    private void OnChatSearchBoxPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm) return;
+        var key = e.Key == Key.ImeProcessed ? e.ImeProcessedKey : e.Key;
+        if (key == Key.Enter)
+        {
+            e.Handled = true;
+            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) vm.PrevSearchMatch();
+            else vm.NextSearchMatch();
+        }
+        else if (key == Key.Escape)
+        {
+            e.Handled = true;
+            vm.CloseChatSearch();
+            Input.Focus();
+        }
+    }
+
+    private void OnScrollToMessageRequested(MessageViewModel target)
+    {
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            if (DataContext is not MainViewModel vm) return;
+            if (vm.IsTimelineView)
+            {
+                ScrollMessageIntoView(ChatList, target);
+                return;
+            }
+            foreach (var list in new[] { ClaudeList, GeminiList, ChappyList })
+            {
+                if (list.Items.Contains(target))
+                {
+                    ScrollMessageIntoView(list, target);
+                    break;
+                }
+            }
+        }));
+    }
+
+    private void ScrollMessageIntoView(ItemsControl list, MessageViewModel target)
+    {
+        var index = list.Items.IndexOf(target);
+        if (index < 0) return;
+        var scroller = ScrollerOf(list);
+        _pinnedToBottom[scroller] = false;
+        var panel = FindVisualChild<VirtualizingStackPanel>(list);
+        panel?.BringIndexIntoViewPublic(index);
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject root) where T : DependencyObject
+    {
+        var count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+            if (child is T found) return found;
+            var nested = FindVisualChild<T>(child);
+            if (nested is not null) return nested;
+        }
+        return null;
     }
 }

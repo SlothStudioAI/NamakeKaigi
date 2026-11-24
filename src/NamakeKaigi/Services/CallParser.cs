@@ -42,6 +42,8 @@ public static class CallParser
     /// <summary>宛先ごとの呼び名の一覧。</summary>
     private static IEnumerable<(string Key, IReadOnlyList<string> Names)> Groups(CallNameSettings names)
     {
+        yield return (Participants.AgyClaudeId, new[] { "クローディ(agy)", "クローディ (agy)", "agyクロ", "Claude(agy)", "Claude (agy)" });
+        yield return (Participants.AgyChappyId, new[] { "チャッピー(agy)", "チャッピー (agy)", "agyチャピ", "ChatGPT(agy)", "ChatGPT (agy)" });
         yield return (Participants.ClaudeId, names.ClaudeNames);
         yield return (Participants.GeminiId, names.GeminiNames);
         yield return (Participants.ChappyId, names.ChappyNames);

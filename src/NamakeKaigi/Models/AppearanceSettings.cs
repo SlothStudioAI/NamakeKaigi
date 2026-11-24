@@ -30,6 +30,9 @@ public sealed record AppearanceSettings(
         Participants.GeminiId => !string.IsNullOrWhiteSpace(GeminiName) ? GeminiName.Trim()
             : IsBusinessMode ? "Gemini" : Participants.Gemini.DisplayName,
         Participants.ChappyId => IsBusinessMode ? "ChatGPT" : Participants.Chappy.DisplayName,
+        Participants.AgyClaudeId => !string.IsNullOrWhiteSpace(ClaudeName) ? $"{ClaudeName.Trim()} (agy)"
+            : IsBusinessMode ? "Claude (agy)" : Participants.AgyClaude.DisplayName,
+        Participants.AgyChappyId => IsBusinessMode ? "ChatGPT (agy)" : Participants.AgyChappy.DisplayName,
         _ => Participants.Get(participantId).DisplayName,
     };
 
@@ -38,10 +41,12 @@ public sealed record AppearanceSettings(
     {
         var trimmed = displayName.Trim();
         if (participantId == Participants.UserId && trimmed == "あなた") return "U";
-        if (participantId == Participants.ClaudeId && (trimmed == "クローディ" || trimmed.Equals("Claude", StringComparison.OrdinalIgnoreCase))) return "C";
+        if (participantId is Participants.ClaudeId or Participants.AgyClaudeId &&
+            (trimmed.StartsWith("クローディ") || trimmed.StartsWith("Claude", StringComparison.OrdinalIgnoreCase))) return "C";
         if (participantId == Participants.GeminiId && (trimmed == "ジェミリー" || trimmed.Equals("Gemini", StringComparison.OrdinalIgnoreCase))) return "G";
         // ChatGPT の頭文字「C」は Claude と重なるので、「GP」にする
-        if (participantId == Participants.ChappyId && trimmed.Equals("ChatGPT", StringComparison.OrdinalIgnoreCase)) return "GP";
+        if (participantId is Participants.ChappyId or Participants.AgyChappyId &&
+            (trimmed.Equals("ChatGPT", StringComparison.OrdinalIgnoreCase) || trimmed.Equals("ChatGPT (agy)", StringComparison.OrdinalIgnoreCase))) return "GP";
         return trimmed.Length > 0 ? trimmed[..1].ToUpperInvariant() : "?";
     }
 

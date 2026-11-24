@@ -18,11 +18,17 @@ public static class AllOrders
     /// <summary>チャッピーが先に答え、残りの人がその答えを読んで答える。</summary>
     public const string ChappyFirst = "chappy-first";
 
+    /// <summary>クローディ(agy)が先に答え、残りの人がその答えを読んで答える。</summary>
+    public const string AgyClaudeFirst = "agy-claude-first";
+
+    /// <summary>チャッピー(agy)が先に答え、残りの人がその答えを読んで答える。</summary>
+    public const string AgyChappyFirst = "agy-chappy-first";
+
     /// <summary>知らない値・空を「同時」にそろえる。</summary>
     /// <param name="order">順番の識別名</param>
     /// <returns>そろえた識別名</returns>
     public static string Normalize(string? order) =>
-        order is ClaudeFirst or GeminiFirst or ChappyFirst ? order : Parallel;
+        order is ClaudeFirst or GeminiFirst or ChappyFirst or AgyClaudeFirst or AgyChappyFirst ? order : Parallel;
 
     /// <summary>先に答える人の識別名(同時なら空)。</summary>
     /// <param name="order">順番の識別名</param>
@@ -32,6 +38,8 @@ public static class AllOrders
         ClaudeFirst => Participants.ClaudeId,
         GeminiFirst => Participants.GeminiId,
         ChappyFirst => Participants.ChappyId,
+        AgyClaudeFirst => Participants.AgyClaudeId,
+        AgyChappyFirst => Participants.AgyChappyId,
         _ => "",
     };
 
@@ -43,6 +51,8 @@ public static class AllOrders
         Participants.ClaudeId => ClaudeFirst,
         Participants.GeminiId => GeminiFirst,
         Participants.ChappyId => ChappyFirst,
+        Participants.AgyClaudeId => AgyClaudeFirst,
+        Participants.AgyChappyId => AgyChappyFirst,
         _ => Parallel,
     };
 

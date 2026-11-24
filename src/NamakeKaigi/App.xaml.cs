@@ -215,7 +215,12 @@ public partial class App : Application
                         summarySettings = s;
                         SettingsLoader.SaveSummary(settingsPath, s);
                     },
-                    backfillService: backfillService),
+                    backfillService: backfillService,
+                    onDefaultParticipantsChanged: ids =>
+                    {
+                        settings = settings with { DefaultParticipants = ids };
+                        SettingsLoader.SaveDefaultParticipants(settingsPath, ids);
+                    }),
                 settings.MaxRooms);
             var rosterSettings = settings.Roster ?? new Models.RosterSettings();
             var window = new MainWindow

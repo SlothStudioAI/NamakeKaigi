@@ -43,9 +43,23 @@ public sealed class MemberViewModel : ViewModelBase
     private readonly Action<string, bool>? _onPresenceChanged;
     private bool _isPresent = true;
     private bool _canChangePresence = true;
+    private bool _isInRoom = true;
 
     /// <summary>このAIのCLIが、このPCで見つかったか(見つからなければ、カードを出さず、会議にも参加させない)。</summary>
     public bool IsInstalled { get; init; } = true;
+
+    /// <summary>左サイドバーに表示するメンバーか(初期メンバーまたは「＋メンバー追加」されたメンバー)。</summary>
+    public bool IsInRoom
+    {
+        get => _isInRoom;
+        set => Set(ref _isInRoom, value);
+    }
+
+    /// <summary>カード上の目印バッジ文字列(agy等)。</summary>
+    public string BadgeText => Participant.BadgeText;
+
+    /// <summary>目印バッジを表示するか。</summary>
+    public bool HasBadge => Participant.HasBadge;
 
     /// <summary>「参加する」の欄を出すか(ユーザー本人には出さない。AIとゲストだけ)。</summary>
     public bool CanChoosePresence => Participant.Id != Participants.UserId;
@@ -110,7 +124,9 @@ public sealed class MemberViewModel : ViewModelBase
     public bool IsFull => _isFull;
 
     /// <summary>選べる段階の一覧(読むだけ / 一部できる / 何でもできる)。</summary>
-    public IReadOnlyList<PermissionLevelOption> LevelOptions => PermissionLevelOption.For(_canFull, Participant.Id == Participants.GeminiId);
+    public IReadOnlyList<PermissionLevelOption> LevelOptions =>
+        PermissionLevelOption.For(_canFull,
+            Participant.Id is Participants.GeminiId or Participants.AgyClaudeId or Participants.AgyChappyId);
 
     /// <summary>画面で選ばれている段階(read / partial / full)。選び直すと、次の発言から効く。</summary>
     public string SelectedLevelId

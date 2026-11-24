@@ -11,6 +11,8 @@ public enum ChatTarget
     Claude,
     Gemini,
     Chappy,
+    AgyClaude,
+    AgyChappy,
     Everyone,
 }
 
@@ -58,16 +60,18 @@ public sealed partial class MainViewModel : ViewModelBase
         MeetingSummaryService? summaryService = null,
         SummarySettings? summarySettings = null,
         Action<SummarySettings>? onSummarySettingsChanged = null,
-        MeetingSummaryBackfillService? backfillService = null)
+        MeetingSummaryBackfillService? backfillService = null,
+        Action<IReadOnlyList<string>>? onDefaultParticipantsChanged = null)
     {
         _summarySessionFactory = summarySessionFactory;
         _summaryService = summaryService;
         _backfillService = backfillService;
         _summarySettings = summarySettings ?? new SummarySettings();
         _onSummarySettingsChanged = onSummarySettingsChanged;
+        _onDefaultParticipantsChanged = onDefaultParticipantsChanged;
         _roomTitleMaxChars = Math.Max(1, roomTitleMaxChars);
         _sessionFactory = sessionFactory;
-        _defaultParticipants = NormalizeParticipants(defaultParticipants);
+        _defaultParticipants = NormalizeParticipants(defaultParticipants, allowAgyProxies: false);
         _clock = clock ?? (() => DateTime.Now);
         _readAloud = new ReadAloudController(speech, voice ?? new VoiceSettings(), name => Raise(name));
         ToggleReadAloudCommand = new RelayCommand(() => ReadAloudOn = !ReadAloudOn, () => ReadAloudAvailable);
@@ -77,9 +81,10 @@ public sealed partial class MainViewModel : ViewModelBase
         _selectedThemeId = ThemeCatalog.GetOrDefault(_session.ThemeId).Id;
         _selectedTimeoutSec = _session.TimeoutSec;
         _selectedAllOrder = _session.AllOrder;
+        var hasAgy = installedAis is null || installedAis.Contains(Participants.GeminiId);
         Members = Participants.All.Select(p => new MemberViewModel(p, OnModelChosen, OnWriterChosen, OnCommandsChosen, OnEffortChosen, OnFullChosen, OnPresenceChosen)
         {
-            IsInstalled = p.Id == Participants.UserId || installedAis is null || installedAis.Contains(p.Id),
+            IsInstalled = p.Id == Participants.UserId || (Participants.IsAgyProxy(p.Id) ? hasAgy : installedAis is null || installedAis.Contains(p.Id)),
         }).ToList();
         ApplyPresence(_defaultParticipants);
         ApplyWritePermissions();
@@ -134,6 +139,10 @@ public sealed partial class MainViewModel : ViewModelBase
     public MemberViewModel GeminiMember => Member(Participants.GeminiId);
 
     public MemberViewModel ChappyMember => Member(Participants.ChappyId);
+
+    public MemberViewModel AgyClaudeMember => Member(Participants.AgyClaudeId);
+
+    public MemberViewModel AgyChappyMember => Member(Participants.AgyChappyId);
 
     public ICommand SendCommand { get; }
 

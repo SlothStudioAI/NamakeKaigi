@@ -229,6 +229,72 @@ public class AllOrderTests
         Assert.Equal("回答を停止しました。", progress.Single(p => p.AgentId == Participants.GeminiId).Text);
     }
 
+    /// <summary>1回目は停止されるまで待ち、2回目以降はすぐ答える偽のAI。</summary>
+    private sealed class StopOnceThenAnswerAgent : IChatAgent
+    {
+        private int _turn;
+
+        public StopOnceThenAnswerAgent(string id, string name)
+        {
+            Id = id;
+            Name = name;
+        }
+
+        public string Id { get; }
+        public string Name { get; }
+        public string ModelLabel => "fake-model";
+        public string ModelId => "fake-model";
+        public IReadOnlyList<ModelOption> ModelOptions { get; } = new[] { new ModelOption("fake-model", "fake-model") };
+        public void SetModel(string modelId) { }
+        public Task<IReadOnlyList<ModelOption>> LoadModelOptionsAsync(CancellationToken ct) => Task.FromResult(ModelOptions);
+        public TaskCompletionSource FirstAsked { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public List<string> Prompts { get; } = new();
+
+        public async Task<AgentReply> AskAsync(string prompt, string? conversationId, Action<AgentUpdate>? onUpdate, CancellationToken ct)
+        {
+            Prompts.Add(prompt);
+            var n = Interlocked.Increment(ref _turn);
+            if (n == 1)
+            {
+                FirstAsked.TrySetResult();
+                await Task.Delay(Timeout.Infinite, ct);
+            }
+            return new AgentReply($"返答{n}", "conv-1");
+        }
+    }
+
+    [Fact]
+    public async Task 停止した発言は既読になり_次の発言では蒸し返さず_停止の注意書きが1回だけ添えられる()
+    {
+        using var dir = new TempDir();
+        var claude = new StopOnceThenAnswerAgent(Participants.ClaudeId, "Claude");
+        var gemini = new FakeAgent(Participants.GeminiId, "Gemini", (_, _, n) => new AgentReply($"G{n}", "g"));
+        var session = CreateSession(dir, AllOrders.ClaudeFirst, claude, gemini);
+
+        // 1回目: 「じゃあ作って！」を送り、途中で停止ボタンを押す
+        var first = session.SendAsync("じゃあ作って！", Everyone, _ => { });
+        await claude.FirstAsked.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        session.CancelPending();
+        await first.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // 2回目: 別の話題を送る → 停止された「じゃあ作って！」はどちらのAIにも再送されず、Claudeには停止の注意書きが添えられる
+        await session.SendAsync("別の話なんだけど", Everyone, _ => { });
+
+        Assert.Equal(2, claude.Prompts.Count);
+        Assert.DoesNotContain("じゃあ作って！", claude.Prompts[1]);
+        Assert.Contains("別の話なんだけど", claude.Prompts[1]);
+        Assert.Contains(PromptComposer.StoppedLastTurnNote, claude.Prompts[1]);
+
+        var geminiPrompt = gemini.Calls.Single().Prompt;
+        Assert.DoesNotContain("じゃあ作って！", geminiPrompt);
+        Assert.Contains("別の話なんだけど", geminiPrompt);
+
+        // 3回目: 正常に答えたあとは、もう停止の注意書きは添えられない
+        await session.SendAsync("さらに続き", new[] { Participants.ClaudeId }, _ => { });
+        Assert.Equal(3, claude.Prompts.Count);
+        Assert.DoesNotContain(PromptComposer.StoppedLastTurnNote, claude.Prompts[2]);
+    }
+
     [Fact]
     public void 順番を変えると_一度だけ保存を頼み_知らない値は同時にそろえる()
     {

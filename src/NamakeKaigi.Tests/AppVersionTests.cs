@@ -27,9 +27,9 @@ public class AppVersionTests
     }
 
     [Fact]
-    public void 実行中のアプリの版は_csprojの1_0_1で_コミットIDを含まない()
+    public void 実行中のアプリの版は_csprojの1_1_0で_コミットIDを含まない()
     {
-        Assert.Equal("1.0.1", AppVersion.Current);
+        Assert.Equal("1.1.0", AppVersion.Current);
         Assert.DoesNotContain("+", AppVersion.Current);
     }
 
@@ -37,7 +37,7 @@ public class AppVersionTests
     public void タイトルバーの版は_看板とは別の項目で_簡易表示でも出る()
     {
         var vm = new MainViewModel(() => new FakeSession());
-        Assert.Equal("v1.0.1", vm.WindowHeaderVersion);
+        Assert.Equal("v1.1.0", vm.WindowHeaderVersion);
         Assert.Equal("NamakeKaigi — Meeting-Driven Development", vm.WindowHeaderTitle); // 看板の文言は変えない
     }
 }

@@ -114,6 +114,14 @@ public static class ContextMetricsService
                 var codexTok = ReadCodexTokens(codexId, codexSessionsDir);
                 if (codexTok.HasValue) agentTokens[Participants.ChappyId] = codexTok.Value;
             }
+            foreach (var proxyId in new[] { Participants.AgyClaudeId, Participants.AgyChappyId })
+            {
+                if (conversationIds.TryGetValue(proxyId, out var proxyConvId))
+                {
+                    var (pIn, pCache) = ReadGeminiTokens(proxyConvId, geminiBrainDir);
+                    if (pIn.HasValue) agentTokens[proxyId] = pIn.Value + (pCache ?? 0);
+                }
+            }
         }
 
         return new ContextMetrics(entries.Count, totalChars, inputTokens, cacheReadTokens, stats, agentTokens);

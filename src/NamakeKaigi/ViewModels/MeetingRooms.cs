@@ -11,18 +11,24 @@ namespace NamakeKaigi.ViewModels;
 /// </summary>
 public sealed class MeetingRooms : ViewModelBase
 {
+    /// <summary>自動実行(予約)の部屋を同時に保持する既定の上限。</summary>
+    public const int DefaultMaxScheduledRooms = 5;
+
     private readonly Func<MainViewModel> _createRoom;
     private readonly int _maxRooms;
+    private readonly int _maxScheduledRooms;
     private MainViewModel _current;
     private bool _syncing;
 
     /// <summary>部屋の一覧を作り、最初の1部屋を開く。</summary>
     /// <param name="createRoom">新しい部屋(会議室1つ分の画面の状態)を作る関数</param>
-    /// <param name="maxRooms">同時に開ける部屋の上限(1未満は1にそろえる)</param>
-    public MeetingRooms(Func<MainViewModel> createRoom, int maxRooms)
+    /// <param name="maxRooms">手動で同時に開ける部屋の上限(1未満は1にそろえる)</param>
+    /// <param name="maxScheduledRooms">自動実行で同時に保持する部屋の上限(1未満は1にそろえる)</param>
+    public MeetingRooms(Func<MainViewModel> createRoom, int maxRooms, int maxScheduledRooms = DefaultMaxScheduledRooms)
     {
         _createRoom = createRoom;
         _maxRooms = Math.Max(1, maxRooms);
+        _maxScheduledRooms = Math.Max(1, maxScheduledRooms);
         AddRoomCommand = new RelayCommand(AddRoom, () => CanAddRoom);
         _current = Attach(createRoom());
         Items.Add(_current);
@@ -41,8 +47,8 @@ public sealed class MeetingRooms : ViewModelBase
     /// <summary>部屋を1つ増やす命令。</summary>
     public ICommand AddRoomCommand { get; }
 
-    /// <summary>部屋を増やせるか(上限に達していなければtrue)。</summary>
-    public bool CanAddRoom => Items.Count < _maxRooms;
+    /// <summary>手動の部屋を増やせるか(手動部屋の数が上限に達していなければtrue)。</summary>
+    public bool CanAddRoom => Items.Count(r => !r.IsScheduledRoom) < _maxRooms;
 
     /// <summary>部屋を閉じられるか(最後の1部屋は閉じない)。</summary>
     public bool CanCloseRoom => Items.Count > 1;
@@ -60,13 +66,13 @@ public sealed class MeetingRooms : ViewModelBase
 
     /// <summary>
     /// 予約の実行のために、新しい部屋を開く。いま見ている画面は切り替えない(入力中の文字や、読んでいる会議を邪魔しないため)。
-    /// 上限のときは、予約で開いた部屋のうち、返答待ちでなく、いま画面に映していない一番古い部屋を閉じて、場所を空ける。
+    /// 自動実行用の枠が上限のときは、予約で開いた部屋のうち、返答待ちでなく、いま画面に映していない一番古い部屋を閉じて、場所を空ける。
     /// </summary>
     /// <param name="title">部屋の名前</param>
     /// <returns>開いた部屋(場所を空けられなければnull)</returns>
     public MainViewModel? OpenScheduledRoom(string title)
     {
-        if (!CanAddRoom)
+        if (Items.Count(r => r.IsScheduledRoom) >= _maxScheduledRooms)
         {
             var old = Items.FirstOrDefault(r => r.IsScheduledRoom && !r.IsBusy && !ReferenceEquals(r, _current));
             if (old is null) return null;
@@ -95,7 +101,7 @@ public sealed class MeetingRooms : ViewModelBase
         var room = OpenScheduledRoom($"自動 {job.Name} {scheduledAt:HHmm}");
         if (room is null)
             return new ScheduleRunRecord(job.Id, job.Name, scheduledAt, started, clock(), ScheduleRunRecord.Skipped,
-                $"会議室が上限({_maxRooms}部屋)で、閉じてよい予約の部屋もないため、見送りました。", manual, "");
+                $"自動実行の会議室が上限({_maxScheduledRooms}部屋)で、閉じてよい完了済みの部屋もないため、見送りました。", manual, "");
         ScheduleOutcome outcome;
         try
         {
